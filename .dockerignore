@@ -1,0 +1,17 @@
+# Keep the build context small and secrets out. Build context = repo root.
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+
+# Secrets / local env (injected at runtime via env_file, never baked in)
+**/.env
+**/.env.*
+!**/.env.example
+
+# VCS / CI / editor / docs (not needed to build)
+.git
+.github
+**/.DS_Store
+**/*.log
+docs
+**/*.md

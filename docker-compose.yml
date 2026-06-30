@@ -1,0 +1,69 @@
+# MythBindr — production compose for the Raspberry Pi (monorepo).
+#
+# Brings up the API (apps/back) and the static web client (apps/front). Both join
+# the shared external `edge` network, where Caddy + cloudflared (the separate edge
+# stack) reach them by name. See docs/deploy/.
+#
+#   docker network create edge        # once, idempotent
+#   docker compose up -d --build
+
+services:
+  api:
+    build:
+      context: .                       # repo root — the API needs @mythbindr/shared
+      dockerfile: apps/back/Dockerfile
+    image: mythbindr-api:latest
+    container_name: mythbindr-api
+    restart: unless-stopped
+    init: true                         # forward SIGTERM → graceful shutdown
+    env_file:
+      - ./apps/back/.env               # MONGODB_URI, SESSION_SECRET, RP_*, SPOTIFY_*, ANTHROPIC_*
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+    expose:
+      - "4000"                         # reachable on `edge` only, not published to the host
+    networks:
+      - edge
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:4000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/front/Dockerfile
+    image: mythbindr-web:latest
+    container_name: mythbindr-web
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  edge:
+    external: true

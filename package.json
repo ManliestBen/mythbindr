@@ -1,0 +1,21 @@
+{
+  "name": "mythbindr",
+  "version": "0.0.0",
+  "private": true,
+  "description": "MythBindr monorepo — API (apps/back), web client (apps/front), shared contract (packages/shared)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "comment:overrides": "Pin a single mongodb so mongoose + connect-mongo share one MongoClient type (workspace hoisting otherwise installs two copies).",
+  "overrides": {
+    "mongodb": "6.20.0"
+  },
+  "scripts": {
+    "build:shared": "npm run build -w @mythbindr/shared",
+    "build": "npm run build:shared && npm run build -w @mythbindr/back && npm run build -w @mythbindr/front",
+    "typecheck": "npm run build:shared && npm run typecheck -w @mythbindr/back && npm run typecheck -w @mythbindr/front",
+    "dev:back": "npm run dev -w @mythbindr/back",
+    "dev:front": "npm run dev -w @mythbindr/front"
+  }
+}

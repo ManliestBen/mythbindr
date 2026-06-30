@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MythBindr — Theme Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Lora:wght@500;600;700&family=IM+Fell+English&family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ---------- Design tokens (shared) ---------- */
+  :root { --radius: 14px; --radius-sm: 9px; --gap: 18px; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px;
+    background: #0a0a0c;
+    font-family: Inter, system-ui, sans-serif;
+    color: #e8e8ea;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page-head { max-width: 1200px; margin: 0 auto 28px; }
+  .page-head h1 { font-family: Cinzel, serif; font-weight: 700; letter-spacing: .5px; margin: 0 0 6px; }
+  .page-head p { margin: 0; color: #9a9aa2; font-size: 14px; }
+  .grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+  /* ---------- Theme component (a self-contained themed dashboard card) ---------- */
+  .theme {
+    --bg: #0E0F13; --surface: #16181E; --surface-2: #1d2027; --border: #2A2C33;
+    --text: #ECEAE3; --muted: #9A968C;
+    --primary: #C9A24B; --primary-bright: #E3C06B; --accent: #7C4DEF;
+    --heading-font: Cinzel, serif; --body-font: Inter, sans-serif;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    color: var(--text);
+    box-shadow: 0 20px 50px -25px rgba(0,0,0,.8);
+  }
+  /* Theme variants — t1 (Mythic Gold) is the default defined on .theme above */
+  .theme.t3 { /* Arcane Navy */
+    --bg:#0C1726; --surface:#13243A; --surface-2:#1a3047; --border:#25405C;
+    --text:#EAF0F6; --muted:#8FA3B8;
+    --primary:#D9A93E; --primary-bright:#EFC766; --accent:#4C7CA8;
+    --heading-font: Lora, serif;
+  }
+  .theme.t6 { /* Parchment Tome (light) */
+    --bg:#F3ECDD; --surface:#FBF6EC; --surface-2:#F2E7D2; --border:#D9C9A8;
+    --text:#2E2620; --muted:#6F6353;
+    --primary:#5B3FA0; --primary-bright:#8A5FD6; --accent:#C07F46;
+    --heading-font: "IM Fell English", serif;
+  }
+  .theme.t9 { /* Ember Violet */
+    --bg:#100E16; --surface:#1A1722; --surface-2:#221d30; --border:#2E2740;
+    --text:#F1EFE6; --muted:#908AA0;
+    --primary:#7C3AED; --primary-bright:#A78BFA; --accent:#A78BFA;
+    --heading-font: "Playfair Display", serif;
+  }
+
+  .theme-top { display:flex; align-items:center; justify-content:space-between; padding:18px 20px; border-bottom:1px solid var(--border); }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .mark {
+    width:40px; height:40px; border-radius:11px; display:grid; place-items:center;
+    background: linear-gradient(150deg, var(--surface-2), var(--surface));
+    border:1px solid var(--border);
+    color: var(--primary); font-family: var(--heading-font); font-weight:700; font-size:20px;
+  }
+  .wordmark { font-family: var(--heading-font); font-weight:700; font-size:22px; letter-spacing:.4px; line-height:1; }
+  .wordmark b { color: var(--primary); font-weight:inherit; }
+  .tagline { font-size:11.5px; color: var(--muted); margin-top:3px; font-style:italic; }
+  .chip { font-size:10.5px; color:var(--muted); border:1px solid var(--border); padding:4px 9px; border-radius:999px; }
+
+  .theme-body { display:grid; grid-template-columns: 132px 1fr; }
+  .nav { border-right:1px solid var(--border); padding:14px 10px; display:flex; flex-direction:column; gap:3px; }
+  .nav a { display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted); text-decoration:none; padding:7px 9px; border-radius:8px; }
+  .nav a.active { color:var(--text); background:var(--surface); }
+  .nav a .dot { width:6px; height:6px; border-radius:50%; background:var(--primary); opacity:.55; }
+  .nav a.active .dot { opacity:1; }
+
+  .main { padding:18px 20px 22px; }
+  .eyebrow { font-size:10.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
+  .campaign { font-family: var(--heading-font); font-weight:700; font-size:24px; margin:4px 0 16px; }
+  .stats { display:grid; grid-template-columns: repeat(4,1fr); gap:12px; }
+  .stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 10px; text-align:center; }
+  .stat .n { font-family: var(--heading-font); font-weight:700; font-size:22px; color:var(--primary); }
+  .stat .l { font-size:10px; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); margin-top:4px; }
+  .row { display:flex; gap:10px; margin-top:18px; }
+  .btn { font-family:var(--body-font); font-size:12.5px; font-weight:600; padding:9px 16px; border-radius:9px; cursor:pointer; border:1px solid transparent; }
+  .btn.primary { background:var(--primary); color:#15120b; }
+  .theme.t6 .btn.primary, .theme.t9 .btn.primary { color:#fff; }
+  .btn.ghost { background:transparent; color:var(--text); border-color:var(--border); }
+  .swatches { display:flex; gap:6px; margin-top:18px; }
+  .swatches span { width:26px; height:14px; border-radius:4px; border:1px solid rgba(255,255,255,.12); }
+</style>
+</head>
+<body>
+  <div class="page-head">
+    <h1>MythBindr — Theme System</h1>
+    <p>Four selectable UI themes derived from the brand sheets, applied to a real dashboard. Refined palettes + live Google Fonts. This is the foundation the app's theme switcher will use.</p>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+<script>
+  const THEMES = [
+    { cls:'t1', n:'1 · Mythic Gold',   tag:'Your Campaign. Bound by Myth.', camp:'The Shattered Crown',
+      stats:[['Locations',12],['NPCs',25],['Encounters',8],['Items',42]],
+      sw:['#0E0F13','#DDCBA4','#C9A24B','#7C4DEF','#ECEAE3'] },
+    { cls:'t3', n:'3 · Arcane Navy',   tag:'Weave legends. Build worlds.', camp:'Campaign Overview',
+      stats:[['Locations',16],['NPCs',31],['Encounters',11],['Items',58]],
+      sw:['#0C1726','#13243A','#4C7CA8','#D9A93E','#F2EEE2'] },
+    { cls:'t6', n:'6 · Parchment Tome', tag:'Ideas. Adventures. Bound.', camp:'Tales in the Making',
+      stats:[['Locations',14],['NPCs',23],['Encounters',9],['Items',44]],
+      sw:['#F3ECDD','#5B3FA0','#8A5FD6','#C07F46','#7A5A3A'] },
+    { cls:'t9', n:'9 · Ember Violet',  tag:'Bring stories to life.', camp:'The Story Continues',
+      stats:[['Locations',18],['NPCs',32],['Encounters',12],['Items',61]],
+      sw:['#100E16','#2A1645','#7C3AED','#A78BFA','#F1EFE6'] },
+  ];
+  const NAV = ['Dashboard','Campaigns','NPCs','Locations','Encounters','Items','Notes'];
+
+  document.getElementById('grid').innerHTML = THEMES.map(t => `
+    <div class="theme ${t.cls}">
+      <div class="theme-top">
+        <div class="brand">
+          <div class="mark">M</div>
+          <div>
+            <div class="wordmark">Myth<b>Bindr</b></div>
+            <div class="tagline">${t.tag}</div>
+          </div>
+        </div>
+        <div class="chip">${t.n}</div>
+      </div>
+      <div class="theme-body">
+        <nav class="nav">
+          ${NAV.map((x,i)=>`<a class="${i===0?'active':''}"><span class="dot"></span>${x}</a>`).join('')}
+        </nav>
+        <div class="main">
+          <div class="eyebrow">Active Campaign</div>
+          <div class="campaign">${t.camp}</div>
+          <div class="stats">
+            ${t.stats.map(([l,n])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('')}
+          </div>
+          <div class="row">
+            <button class="btn primary">+ New Element</button>
+            <button class="btn ghost">Generate with AI</button>
+          </div>
+          <div class="swatches">${t.sw.map(c=>`<span style="background:${c}"></span>`).join('')}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+</script>
+</body>
+</html>
