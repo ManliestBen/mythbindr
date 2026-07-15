@@ -1,7 +1,8 @@
 # Design spike: live shared session table over the existing Socket.IO contract
 
 - **Plan**: `plans/008-live-session-spike.md`
-- **Status**: proposed — not yet reviewed by the operator. No production code changed.
+- **Status**: reviewed — all open questions resolved by the operator 2026-07-14 (see the
+  final section). Ready to decompose into build plans A–D. No production code changed.
 - **Scope of this doc**: architecture decision + event contract + player-view design for
   broadcasting `RunSession` state over the existing Socket.IO layer, and a `ShareLink.scope:
   'session'` read-only player view. This spike decomposes the work into build plans; it does
@@ -275,7 +276,7 @@ authenticated members. Proposed `sharedSessionState()`:
 | `combatants[].initiative` | yes | needed for turn order display |
 | `combatants[].isPlayer` | yes | lets the UI visually separate PCs from monsters |
 | `combatants[].conditions` | yes | table generally wants to see status effects |
-| `combatants[].currentHp`, `maxHp`, `tempHp` | **operator-configurable, default no for `isPlayer: false`** | see open question below |
+| `combatants[].currentHp`, `maxHp`, `tempHp` | yes for `isPlayer: true`; **no for monsters** | operator decision 2026-07-14: monster health is hidden entirely — no numbers, no descriptive tiers |
 | `combatants[].deathSaves` | yes, but **only for the viewer's own PC** if per-player identity is ever added; for now (no per-player login) treat as GM-only and omit | conservative default until share links can be scoped to a specific player |
 | `combatants[].notes` | **no** | GM scratch notes ("secretly a doppelganger") — this is exactly the class of field `serialize.ts`'s `GM_ONLY_DATA` pattern exists to strip |
 | `combatants[].sourceElementId` | **no** | leaks internal element ids, same rationale as `sanitizeBody`'s mention-stripping in `serialize.ts` |
@@ -409,24 +410,21 @@ Design:
 
 ## Open questions for the operator
 
-1. **Monster HP visibility for players** — exact numbers, a descriptive tier ("bloodied" /
-   "near death"), or hidden entirely? This is a GM table-culture preference with no clearly
-   correct default; recommend making it a per-campaign (or per-share-link) toggle rather than
-   hard-coding one policy, but the *default* needs an operator decision before Plan D ships.
-2. **Does a `'session'`-scoped share link always follow "whichever session is currently
-   active," or should it pin to one specific session at creation time?** Recommended above:
-   follow the active session. Confirm that matches how GMs actually use share links today (are
-   they typically regenerated per-session, or handed out once and reused indefinitely?).
-3. **Per-player identity on the share view** — is a `'session'` share link one shared link for
-   the whole party (current recommendation, simplest), or does the design need to eventually
-   distinguish "which PC is this viewer" (e.g. to show that player's own death saves, or to
-   let them self-report HP)? Affects whether `deathSaves`/per-PC private fields are ever
-   exposed via this path at all.
-4. **Slice 1 as a shippable milestone, or skip straight to Plan B?** Slice 1 (GM-authoritative
-   broadcast of existing PATCH results) ships visible value fast but is explicitly a stepping
-   stone with the same conflict weaknesses as today. Worth confirming the team wants that
-   incremental win rather than holding the feature dark until Plan B/C land.
-5. **Connection cap and rate-limit numbers for the `/share` namespace** (N≈10 sockets/token,
-   IP-based handshake cooldown) are placeholders reasoned from "a table is small" — confirm
-   these against how large the biggest real campaigns' player counts get before Plan D encodes
-   them as constants.
+**All resolved by the operator on 2026-07-14:**
+
+1. **Monster HP visibility for players** — RESOLVED: **hidden entirely.** Players see monster
+   names, initiative order, `isPlayer`, and conditions — no health signal of any kind (no
+   numbers, no "bloodied"-style tiers). PC (`isPlayer: true`) HP remains visible. The
+   whitelist table above reflects this; Plan D does not need a per-campaign toggle for v1.
+2. **Session share-link target** — RESOLVED: **follow the currently active session.** One
+   durable link per campaign resolves to `GameSession.findOne({ campaignId, status: 'active' })`
+   at request time; no `sessionId` field on `ShareLink`.
+3. **Per-player identity on the share view** — RESOLVED: **one shared link for the whole
+   party.** No per-PC viewer identity; `deathSaves` and other per-PC private fields stay
+   GM-only on this path. Revisit only if a future feature demands it.
+4. **Slice 1 sequencing** — RESOLVED: **ship Slice 1 first** (Plan A: broadcast existing
+   PATCH results). Its last-writer-wins limitation is accepted as a documented stepping stone;
+   Plans B/C follow.
+5. **`/share` connection cap / rate-limit numbers** — RESOLVED: the placeholders stand
+   (≈10 sockets per token, IP-based handshake cooldown). Encode as named constants in Plan D
+   so they're one-line tunable.

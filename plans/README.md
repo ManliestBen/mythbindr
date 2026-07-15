@@ -42,6 +42,14 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - **ESLint/Prettier/pre-commit**: worthwhile but MED-risk churn (repo-wide reformat) and the operator didn't select it this round. Candidate for a future run; add a `lint` CI step when it lands.
 - **login/verify passkey-enumeration message**: not rejected — folded into plan 002 (Step 3).
 
+## Operator decisions (2026-07-14)
+
+The five open questions in `docs/design/live-session.md` are resolved (recorded in that doc's
+final section): monster HP **hidden entirely** on the player share view; session share links
+**follow the active session**; **one shared link** per party (no per-player identity);
+**Slice 1 ships first** (Plan A before B/C); `/share` abuse-control placeholder numbers stand.
+Next step when desired: write build plans A–D (as plans 009–012) from that doc.
+
 ## Audit scope note
 
 Standard-effort audit (2026-07-14): all nine playbook categories over `apps/back`, `apps/front`, `packages/shared`. Not audited: `docs/deploy/` accuracy against the real Pi, seed-script data content, runtime behavior beyond `npm audit` (0 vulnerabilities) / `npm outdated`. Security review found the authz architecture sound (per-route role gates, no IDOR found, whitelisted share serialization, admin-gated AI, encrypted Spotify tokens).
