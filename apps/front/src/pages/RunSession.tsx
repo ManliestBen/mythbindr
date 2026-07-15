@@ -35,6 +35,7 @@ export default function RunSession() {
   const end = useEndSession(cid ?? '');
 
   const [session, setSession] = useState<GameSessionT | null>(null);
+  const [dirty, setDirty] = useState(false);
   const [refOpen, setRefOpen] = useState(false);
   const [ending, setEnding] = useState(false);
   const [recap, setRecap] = useState('');
@@ -79,19 +80,37 @@ export default function RunSession() {
   }, [loaded?.id]);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
   const persist = useCallback(
     (next: GameSessionT) => {
       if (timer.current) clearTimeout(timer.current);
+      setDirty(true);
       timer.current = setTimeout(() => {
-        update.mutate({
-          sid: next.id,
-          patch: {
-            round: next.round,
-            turnIndex: next.turnIndex,
-            combatants: next.combatants,
-            log: next.log,
+        timer.current = null;
+        update.mutate(
+          {
+            sid: next.id,
+            patch: {
+              round: next.round,
+              turnIndex: next.turnIndex,
+              combatants: next.combatants,
+              log: next.log,
+            },
           },
-        });
+          {
+            // Only clear dirty when no newer edit is buffered; otherwise a
+            // stale mutation settling would flash "Saved" while an edit is
+            // still waiting out the debounce.
+            onSettled: () => {
+              if (!timer.current) setDirty(false);
+            },
+          },
+        );
       }, 800);
     },
     [update],
@@ -156,7 +175,17 @@ export default function RunSession() {
       return { ...s, combatants, turnIndex: ti >= 0 ? ti : s.turnIndex };
     });
   const removeCombatant = (rm: string) =>
-    patch((s) => ({ ...s, combatants: s.combatants.filter((c) => c.cid !== rm) }));
+    patch((s) => {
+      const before = sortByInit(s.combatants);
+      const onTurn = before.length ? before[s.turnIndex % before.length]?.cid : null;
+      const combatants = s.combatants.filter((c) => c.cid !== rm);
+      const after = sortByInit(combatants);
+      // Follow whoever's turn it is; if THEY were removed, keep the same slot
+      // (clamped) so the ring lands on the next creature in order.
+      const ti = onTurn && onTurn !== rm ? after.findIndex((c) => c.cid === onTurn) : -1;
+      const fallback = after.length ? Math.min(s.turnIndex, after.length - 1) : 0;
+      return { ...s, combatants, turnIndex: ti >= 0 ? ti : fallback };
+    });
   const addCombatant = (c: Combatant) =>
     patch((s) => ({ ...s, combatants: [...s.combatants, c] }));
 
@@ -241,6 +270,23 @@ export default function RunSession() {
   const atStart = session.turnIndex <= 0 && session.round <= 1;
 
   const finishSession = async () => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+      await update
+        .mutateAsync({
+          sid: session.id,
+          patch: {
+            round: session.round,
+            turnIndex: session.turnIndex,
+            combatants: session.combatants,
+            log: session.log,
+          },
+        })
+        .catch(() => {
+          /* ending anyway; the end call is the priority */
+        });
+    }
     if (saveRecap) {
       const highlights = session.log
         .filter((l) => l.kind !== 'roll')
@@ -288,7 +334,7 @@ export default function RunSession() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <SaveStatus pending={update.isPending} error={update.isError} />
+          <SaveStatus pending={update.isPending || dirty} error={update.isError} />
           <button
             onClick={() => setRefOpen((v) => !v)}
             title="Rules quick reference: conditions, combat actions, and an instant NPC"
