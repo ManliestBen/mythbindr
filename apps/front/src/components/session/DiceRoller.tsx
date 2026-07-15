@@ -16,17 +16,26 @@ function parseFormula(raw: string): { count: number; sides: number; mod: number 
   return { count, sides, mod: m[3] ? parseInt(m[3], 10) : 0 };
 }
 
-/** Roll `count` advantage/disadvantage d20 pairs; one readable log line. */
-function rollD20Pairs(kind: 'adv' | 'dis', count: number, m: number): string {
+/**
+ * Advantage/disadvantage for any die: each die is rolled twice and the better
+ * (or worse) result kept. d20s report each pair as its own total — they're
+ * separate checks/attacks. Other dice sum the picks — they're damage.
+ */
+function rollWithEdge(kind: 'adv' | 'dis', sides: number, count: number, m: number): string {
   const pairs = Array.from({ length: count }, () => {
-    const a = rollDie(20);
-    const b = rollDie(20);
+    const a = rollDie(sides);
+    const b = rollDie(sides);
     return { a, b, pick: kind === 'adv' ? Math.max(a, b) : Math.min(a, b) };
   });
   const detail = pairs.map((p) => `[${p.a},${p.b}→${p.pick}]`).join(' ');
   const modStr = m ? `${m > 0 ? '+' : ''}${m}` : '';
-  const totals = pairs.map((p) => p.pick + m).join(', ');
-  return `${count > 1 ? `${count}×` : ''}d20 (${kind}) ${detail}${modStr} = ${totals}`;
+  const label = `${count > 1 ? `${count}×` : ''}d${sides} (${kind})`;
+  if (sides === 20) {
+    const totals = pairs.map((p) => p.pick + m).join(', ');
+    return `${label} ${detail}${modStr} = ${totals}`;
+  }
+  const sum = pairs.reduce((s, p) => s + p.pick, 0) + m;
+  return `${label} ${detail}${modStr} = ${sum}`;
 }
 
 export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void }) {
@@ -43,9 +52,9 @@ export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void 
       return;
     }
     setFormulaError(false);
-    // The adv/dis toggle applies to every d20 roll, formula rolls included.
-    if (parsed.sides === 20 && adv !== 'none') {
-      onRoll(rollD20Pairs(adv, parsed.count, parsed.mod));
+    // The adv/dis toggle applies to formula rolls too.
+    if (adv !== 'none') {
+      onRoll(rollWithEdge(adv, parsed.sides, parsed.count, parsed.mod));
       setFormula('');
       return;
     }
@@ -63,9 +72,8 @@ export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void 
     const c = Math.min(Math.max(parseInt(count, 10) || 1, 1), 20);
     const modStr = m ? `${m > 0 ? '+' : ''}${m}` : '';
 
-    if (sides === 20 && adv !== 'none') {
-      // Honor the × count too: two attacks with advantage = two pairs.
-      onRoll(rollD20Pairs(adv, c, m));
+    if (adv !== 'none') {
+      onRoll(rollWithEdge(adv, sides, c, m));
       return;
     }
     const rolls = Array.from({ length: c }, () => rollDie(sides));
@@ -123,7 +131,12 @@ export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void 
               {a === 'none' ? 'normal' : a}
             </button>
           ))}
-          <span className="self-center text-[10px] text-fg-muted">(any d20 roll)</span>
+          <span
+            className="self-center text-[10px] text-fg-muted"
+            title="Every die is rolled twice, keeping the better (adv) or worse (dis) of each pair. RAW 5e only uses this for d20s — for other dice it's a handy house-rule lever."
+          >
+            (rolls twice, keeps one)
+          </span>
         </div>
       </div>
       <div className="mt-2 flex items-center gap-2">
