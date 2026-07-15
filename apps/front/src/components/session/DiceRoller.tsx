@@ -1,42 +1,7 @@
 import { useState } from 'react';
+import { parseFormula, rollDie, rollWithEdge } from '../../lib/dice';
 
 const DICE = [4, 6, 8, 10, 12, 20, 100];
-
-function rollDie(sides: number): number {
-  return Math.floor(Math.random() * sides) + 1;
-}
-
-/** Parse "8d6+3", "d20-1", "3d8" (whitespace/case tolerant). */
-function parseFormula(raw: string): { count: number; sides: number; mod: number } | null {
-  const m = raw.replace(/\s+/g, '').toLowerCase().match(/^(\d*)d(\d+)([+-]\d+)?$/);
-  if (!m) return null;
-  const count = Math.min(Math.max(parseInt(m[1] || '1', 10), 1), 100);
-  const sides = parseInt(m[2], 10);
-  if (sides < 2 || sides > 1000) return null;
-  return { count, sides, mod: m[3] ? parseInt(m[3], 10) : 0 };
-}
-
-/**
- * Advantage/disadvantage for any die: each die is rolled twice and the better
- * (or worse) result kept. d20s report each pair as its own total — they're
- * separate checks/attacks. Other dice sum the picks — they're damage.
- */
-function rollWithEdge(kind: 'adv' | 'dis', sides: number, count: number, m: number): string {
-  const pairs = Array.from({ length: count }, () => {
-    const a = rollDie(sides);
-    const b = rollDie(sides);
-    return { a, b, pick: kind === 'adv' ? Math.max(a, b) : Math.min(a, b) };
-  });
-  const detail = pairs.map((p) => `[${p.a},${p.b}→${p.pick}]`).join(' ');
-  const modStr = m ? `${m > 0 ? '+' : ''}${m}` : '';
-  const label = `${count > 1 ? `${count}×` : ''}d${sides} (${kind})`;
-  if (sides === 20) {
-    const totals = pairs.map((p) => p.pick + m).join(', ');
-    return `${label} ${detail}${modStr} = ${totals}`;
-  }
-  const sum = pairs.reduce((s, p) => s + p.pick, 0) + m;
-  return `${label} ${detail}${modStr} = ${sum}`;
-}
 
 export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void }) {
   const [mod, setMod] = useState('');
