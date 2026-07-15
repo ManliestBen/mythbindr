@@ -4,9 +4,11 @@ import {
   useCampaign,
   useDeleteCampaign,
   useDuplicateCampaign,
+  useRestoreCampaign,
   useUpdateCampaign,
   type CampaignFormValues,
 } from '../data/campaigns';
+import { useToast } from '../components/ToastProvider';
 import CampaignForm from '../components/CampaignForm';
 import GettingStarted from '../components/GettingStarted';
 import Skeleton from '../components/Skeleton';
@@ -32,7 +34,9 @@ export default function CampaignHome() {
   const { data: campaign, isLoading, error } = useCampaign(cid);
   const update = useUpdateCampaign(cid ?? '');
   const del = useDeleteCampaign();
+  const restoreCampaign = useRestoreCampaign();
   const duplicate = useDuplicateCampaign();
+  const toast = useToast();
   const dash = useDashboard(cid ?? '');
   const activity = useActivity(cid ?? '');
   const liveSession = useSession(cid ?? '');
@@ -59,9 +63,18 @@ export default function CampaignHome() {
   const onSave = (values: CampaignFormValues) =>
     update.mutate(values, { onSuccess: () => setEditing(false) });
 
+  // Undo via toast replaces the confirm dialog — reversible beats interrogated.
   const onDelete = () => {
-    if (!window.confirm(`Move "${campaign.name}" to trash?`)) return;
-    del.mutate(campaign.id, { onSuccess: () => navigate('/campaigns') });
+    const { id, name } = campaign;
+    del.mutate(id, {
+      onSuccess: () => {
+        navigate('/campaigns');
+        toast(`"${name}" moved to trash.`, {
+          actionLabel: 'Undo',
+          onAction: () => restoreCampaign.mutate(id),
+        });
+      },
+    });
   };
 
   const onDuplicate = () =>

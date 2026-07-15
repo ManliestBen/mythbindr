@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import CommandPalette from './CommandPalette';
+import { ToastProvider } from './ToastProvider';
 
 export default function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -38,6 +39,7 @@ export default function AppShell() {
   }, []);
 
   return (
+    <ToastProvider>
     <div className="flex h-screen overflow-hidden bg-app-bg text-fg">
       <div className="hidden h-full md:block">
         <Sidebar />
@@ -67,5 +69,6 @@ export default function AppShell() {
       </div>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
+    </ToastProvider>
   );
 }

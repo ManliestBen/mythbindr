@@ -9,8 +9,10 @@ import {
   useCreateElement,
   useDeleteElement,
   useElement,
+  useRestoreElement,
   useUpdateElement,
 } from '../data/elements';
+import { useToast } from '../components/ToastProvider';
 import ElementForm, {
   type ElementFormResult,
   type ElementFormValues,
@@ -28,6 +30,8 @@ export default function ElementEditor() {
   const create = useCreateElement(cid ?? '');
   const update = useUpdateElement(cid ?? '', elementId ?? '');
   const del = useDeleteElement(cid ?? '');
+  const restore = useRestoreElement(cid ?? '');
+  const toast = useToast();
   const backlinks = useBacklinks(cid ?? '', isNew ? undefined : elementId);
   const participants = usePresence(isNew ? undefined : elementId);
   const { user } = useAuth();
@@ -75,10 +79,19 @@ export default function ElementEditor() {
     }
   };
 
+  // No confirm dialog — the toast's Undo makes deletion safely reversible.
   const onDelete = () => {
     if (!element) return;
-    if (!window.confirm(`Move "${element.name}" to trash?`)) return;
-    del.mutate(element.id, { onSuccess: () => navigate(backTo) });
+    const { id, name } = element;
+    del.mutate(id, {
+      onSuccess: () => {
+        navigate(backTo);
+        toast(`"${name}" moved to trash.`, {
+          actionLabel: 'Undo',
+          onAction: () => restore.mutate(id),
+        });
+      },
+    });
   };
 
   const mutationError = (isNew ? create.error : update.error) as Error | null;
