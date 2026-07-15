@@ -2,16 +2,36 @@ import { useParams } from 'react-router-dom';
 import { useShareCampaign, useShareElements, type ShareElement } from '../data/share';
 import ProseMirrorView from '../components/ProseMirrorView';
 
+const TYPE_ORDER = ['quest', 'npc', 'location', 'encounter', 'item', 'faction', 'pc', 'note'];
+
 const TYPE_LABELS: Record<string, string> = {
-  npc: 'NPCs',
-  location: 'Locations',
+  npc: 'People',
+  location: 'Places',
   encounter: 'Encounters',
   item: 'Items',
-  note: 'Notes',
+  note: 'Lore & Notes',
   quest: 'Quests',
   faction: 'Factions',
-  pc: 'Party',
+  pc: 'The Party',
 };
+
+/** Small facts worth showing to players, per type. */
+const CHIP_KEYS: Record<string, string[]> = {
+  npc: ['race', 'role', 'location'],
+  location: ['locType'],
+  item: ['itemType', 'rarity', 'attunement'],
+  quest: ['status', 'giver'],
+  faction: ['influence', 'leader'],
+  pc: ['race', 'klass', 'level', 'playerName'],
+};
+
+function chips(e: ShareElement): string[] {
+  const d = (e.data ?? {}) as Record<string, unknown>;
+  return (CHIP_KEYS[e.type] ?? [])
+    .map((k) => d[k])
+    .filter((v): v is string | number => v !== undefined && v !== null && v !== '')
+    .map(String);
+}
 
 export default function SharePage() {
   const { token } = useParams();
@@ -37,41 +57,95 @@ export default function SharePage() {
     (acc[e.type] ??= []).push(e);
     return acc;
   }, {});
+  const sections = TYPE_ORDER.filter((t) => grouped[t]?.length);
 
   return (
     <div className="min-h-screen bg-app-bg text-fg">
-      <header className="border-b border-app-border bg-app-surface px-6 py-4">
-        <div className="mx-auto max-w-3xl">
-          <p className="text-[11px] uppercase tracking-[0.15em] text-fg-muted">Player view</p>
-          <h1 className="font-heading text-2xl font-bold">{camp.data.campaign.name}</h1>
+      <header className="border-b border-app-border bg-app-surface px-6 py-5">
+        <div className="mx-auto max-w-5xl">
+          <p className="text-[11px] uppercase tracking-[0.15em] text-fg-muted">
+            Player&rsquo;s guide to
+          </p>
+          <h1 className="font-heading text-3xl font-bold">{camp.data.campaign.name}</h1>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        {(els.data ?? []).length === 0 && (
-          <p className="text-sm text-fg-muted">Nothing has been shared yet.</p>
-        )}
-        {Object.keys(TYPE_LABELS)
-          .filter((t) => grouped[t]?.length)
-          .map((t) => (
-            <section key={t} className="mb-8">
-              <h2 className="font-heading text-lg font-bold">{TYPE_LABELS[t]}</h2>
-              <div className="mt-3 space-y-4">
-                {grouped[t].map((e) => (
-                  <article
-                    key={e.id}
-                    className="rounded-xl border border-app-border bg-app-surface p-4"
+      <div className="mx-auto flex max-w-5xl gap-8 px-6 py-8">
+        {/* Table of contents — sticks on desktop, hidden on phones. */}
+        {sections.length > 1 && (
+          <nav className="sticky top-8 hidden h-fit w-40 shrink-0 lg:block" aria-label="Contents">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-muted">
+              Contents
+            </p>
+            <ul className="mt-2 space-y-1">
+              {sections.map((t) => (
+                <li key={t}>
+                  <a
+                    href={`#section-${t}`}
+                    className="text-sm text-fg-muted hover:text-brand"
                   >
-                    <h3 className="font-heading text-base font-bold">{e.name}</h3>
-                    <div className="mt-2">
-                      <ProseMirrorView body={e.body} />
-                    </div>
-                  </article>
-                ))}
+                    {TYPE_LABELS[t] ?? t}{' '}
+                    <span className="text-[10px]">({grouped[t].length})</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+
+        <main className="min-w-0 flex-1">
+          {(els.data ?? []).length === 0 && (
+            <p className="text-sm text-fg-muted">
+              Nothing has been shared yet — check back after your next session.
+            </p>
+          )}
+          {sections.map((t) => (
+            <section key={t} id={`section-${t}`} className="mb-10 scroll-mt-8">
+              <h2 className="border-b border-app-border pb-2 font-heading text-xl font-bold">
+                {TYPE_LABELS[t] ?? t}
+              </h2>
+              <div className="mt-4 space-y-4">
+                {grouped[t].map((e) => {
+                  const readAloud =
+                    e.type === 'location'
+                      ? ((e.data ?? {}) as Record<string, unknown>).readAloud
+                      : undefined;
+                  return (
+                    <article
+                      key={e.id}
+                      className="rounded-xl border border-app-border bg-app-surface p-5"
+                    >
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <h3 className="font-heading text-lg font-bold">{e.name}</h3>
+                        {chips(e).map((c, i) => (
+                          <span
+                            key={i}
+                            className="rounded-full border border-app-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-fg-muted"
+                          >
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                      {typeof readAloud === 'string' && readAloud.trim() && (
+                        <blockquote className="mt-3 border-l-2 border-brand pl-3 text-sm italic text-fg-muted">
+                          {readAloud}
+                        </blockquote>
+                      )}
+                      <div className="mt-3">
+                        <ProseMirrorView body={e.body} />
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </section>
           ))}
-      </main>
+        </main>
+      </div>
+
+      <footer className="border-t border-app-border px-6 py-4 text-center text-xs text-fg-muted">
+        Bound by Myth — this page updates as your GM reveals more of the world.
+      </footer>
     </div>
   );
 }

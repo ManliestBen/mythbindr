@@ -21,18 +21,26 @@ function sanitizeBody(node: unknown): unknown {
   return node;
 }
 
+/** Data keys that are GM planning info even on a player-shared element. */
+const GM_ONLY_DATA: Record<string, string[]> = {
+  quest: ['consequences'],
+  encounter: ['combatants', 'outcome', 'trigger'],
+};
+
 /**
  * Player-facing serialization. **Whitelist only** — never include `secrets`,
  * `links`, `updatedBy`, or any GM-only field. Used exclusively by /api/share/*.
  */
 export function sharedElement(e: ElementDoc) {
+  const data = { ...((e.data ?? {}) as Record<string, unknown>) };
+  for (const k of GM_ONLY_DATA[e.type] ?? []) delete data[k];
   return {
     id: String(e._id),
     type: e.type,
     name: e.name,
     body: sanitizeBody(e.body),
     tags: e.tags,
-    data: e.data,
+    data,
     soundtrack: e.soundtrack,
   };
 }
