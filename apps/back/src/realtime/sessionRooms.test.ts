@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SessionDoc } from '../models/Session';
+import type { SessionRoom } from './sessionState';
 
 // Mock the socket server so we can inspect what gets emitted without a real
 // Socket.IO instance. `to(room).emit(event, payload)` is the only surface used.
@@ -12,7 +13,7 @@ vi.mock('./io', () => ({
   getIO: () => mocks.ioValue,
 }));
 
-import { broadcastSessionState, currentSeq } from './sessionRooms';
+import { broadcastRoomState, broadcastSessionState, roomStatePayload } from './sessionRooms';
 
 function fakeSession(id: string, status: 'active' | 'ended' = 'active'): SessionDoc {
   return {
@@ -30,6 +31,26 @@ function fakeSession(id: string, status: 'active' | 'ended' = 'active'): Session
   } as unknown as SessionDoc;
 }
 
+function fakeRoom(overrides: Partial<SessionRoom> = {}): SessionRoom {
+  return {
+    state: {
+      id: 'room-a',
+      round: 1,
+      turnIndex: 0,
+      combatants: [],
+      log: [],
+      status: 'active',
+    },
+    meta: { sourceEncounterId: null, startedAt: new Date('2026-07-14T00:00:00Z') },
+    seq: 0,
+    dirty: false,
+    saveTimer: null,
+    ready: Promise.resolve(),
+    sockets: new Set<string>(),
+    ...overrides,
+  };
+}
+
 describe('broadcastSessionState', () => {
   it('does not throw and does not emit when getIO() returns null', () => {
     mocks.ioValue = null;
@@ -37,7 +58,7 @@ describe('broadcastSessionState', () => {
     expect(mocks.emit).not.toHaveBeenCalled();
   });
 
-  it('increments seq per session and starts a different session at 1', () => {
+  it('always emits seq: 0 — no room exists yet at this REST-only codepath', () => {
     mocks.emit = vi.fn();
     mocks.ioValue = { to: () => ({ emit: mocks.emit }) };
 
@@ -47,22 +68,55 @@ describe('broadcastSessionState', () => {
 
     expect(mocks.emit).toHaveBeenCalledTimes(3);
     const seqs = mocks.emit.mock.calls.map((c) => (c[1] as { seq: number }).seq);
-    expect(seqs).toEqual([1, 2, 1]);
-    expect(currentSeq('sess-a')).toBe(2);
-    expect(currentSeq('sess-b')).toBe(1);
+    expect(seqs).toEqual([0, 0, 0]);
+  });
+});
+
+describe('roomStatePayload', () => {
+  it('builds the wire payload from held state + meta, using the room\'s own seq', () => {
+    const room = fakeRoom({ seq: 7, state: { id: 'sess-x', round: 3, turnIndex: 1, combatants: [], log: [], status: 'active' } });
+    const payload = roomStatePayload('sess-x', room);
+    expect(payload).toEqual({
+      sessionId: 'sess-x',
+      seq: 7,
+      session: {
+        id: 'sess-x',
+        status: 'active',
+        sourceEncounterId: null,
+        round: 3,
+        turnIndex: 1,
+        combatants: [],
+        log: [],
+        startedAt: room.meta.startedAt,
+        endedAt: null,
+      },
+    });
   });
 
-  it('frees the counter once the session ends, so the next broadcast restarts at 1', () => {
+  it('sets endedAt when the room state is ended', () => {
+    const room = fakeRoom({ state: { id: 'sess-y', round: 1, turnIndex: 0, combatants: [], log: [], status: 'ended' } });
+    const payload = roomStatePayload('sess-y', room);
+    expect(payload.session.status).toBe('ended');
+    expect(payload.session.endedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('broadcastRoomState', () => {
+  it('emits to the session room using the room\'s own seq', () => {
     mocks.emit = vi.fn();
     mocks.ioValue = { to: () => ({ emit: mocks.emit }) };
 
-    broadcastSessionState(fakeSession('sess-c'));
-    broadcastSessionState(fakeSession('sess-c'));
-    broadcastSessionState(fakeSession('sess-c', 'ended'));
-    expect(currentSeq('sess-c')).toBe(0); // freed
+    const room = fakeRoom({ seq: 5 });
+    broadcastRoomState('sess-z', room);
 
-    broadcastSessionState(fakeSession('sess-c'));
-    const seqs = mocks.emit.mock.calls.map((c) => (c[1] as { seq: number }).seq);
-    expect(seqs).toEqual([1, 2, 3, 1]);
+    expect(mocks.emit).toHaveBeenCalledTimes(1);
+    const [event, payload] = mocks.emit.mock.calls[0] as [string, { seq: number }];
+    expect(event).toBe('session:state');
+    expect(payload.seq).toBe(5);
+  });
+
+  it('does not throw and does not emit when getIO() returns null', () => {
+    mocks.ioValue = null;
+    expect(() => broadcastRoomState('sess-none', fakeRoom())).not.toThrow();
   });
 });

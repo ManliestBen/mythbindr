@@ -5,9 +5,14 @@ import { requireCampaignAccess } from '../campaigns/access';
 import { validate } from '../lib/validate';
 import { GameSession, publicSession, type SessionDoc } from '../models/Session';
 import { Element } from '../models/Element';
-import { sessionStartSchema, sessionUpdateSchema } from '@mythbindr/shared';
+import {
+  sessionStartSchema,
+  sessionUpdateSchema,
+  type GameSessionState,
+} from '@mythbindr/shared';
 import { parseCombatants } from './combatants';
-import { broadcastSessionState } from '../realtime/sessionRooms';
+import { broadcastRoomState, broadcastSessionState, roomToPublicSession } from '../realtime/sessionRooms';
+import { applyStateReplace, getLiveRoom } from '../realtime/sessionState';
 
 const router = Router({ mergeParams: true });
 
@@ -72,10 +77,34 @@ router.patch(
       res.status(404).json({ error: 'Session not found' });
       return;
     }
-    const $set: Record<string, unknown> = {};
-    for (const k of ['round', 'turnIndex', 'combatants', 'log', 'status'] as const) {
-      if (req.body[k] !== undefined) $set[k] = req.body[k];
+    // Scope to this campaign before touching anything — the live-room lookup
+    // below is keyed only by sessionId, so this guards against a PATCH under
+    // the wrong campaignId reaching a room hydrated from a different one.
+    const owns = await GameSession.exists({ _id: req.params.sid, campaignId: req.params.cid });
+    if (!owns) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
     }
+    const patch: Partial<GameSessionState> = {};
+    for (const k of ['round', 'turnIndex', 'combatants', 'log', 'status'] as const) {
+      if (req.body[k] !== undefined) patch[k] = req.body[k];
+    }
+
+    // A live room (Plan 010) is the single applier of session state — apply
+    // the wholesale patch through it instead of writing Mongo directly, so a
+    // Slice-1 client's debounced PATCH can't race a socket-dispatched op. The
+    // room's own debounced save persists it (same tradeoff as yElement.ts).
+    const room = getLiveRoom(req.params.sid);
+    if (room) {
+      // applyStateReplace mutates `room` in place (same map entry), so `room`
+      // already reflects the new state/seq once this returns.
+      applyStateReplace(req.params.sid, patch);
+      broadcastRoomState(req.params.sid, room);
+      res.json({ session: roomToPublicSession(room) });
+      return;
+    }
+
+    const $set: Record<string, unknown> = { ...patch };
     if ($set.status === 'ended') $set.endedAt = new Date();
     const s = await GameSession.findOneAndUpdate(
       { _id: req.params.sid, campaignId: req.params.cid },
@@ -100,6 +129,20 @@ router.post(
       res.status(404).json({ error: 'Session not found' });
       return;
     }
+    const owns = await GameSession.exists({ _id: req.params.sid, campaignId: req.params.cid });
+    if (!owns) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+
+    const room = getLiveRoom(req.params.sid);
+    if (room) {
+      applyStateReplace(req.params.sid, { status: 'ended' });
+      broadcastRoomState(req.params.sid, room);
+      res.json({ session: roomToPublicSession(room) });
+      return;
+    }
+
     const s = await GameSession.findOneAndUpdate(
       { _id: req.params.sid, campaignId: req.params.cid },
       { $set: { status: 'ended', endedAt: new Date() } },

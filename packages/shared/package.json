@@ -17,6 +17,10 @@
     "./realtime": {
       "types": "./dist/realtime/index.d.ts",
       "default": "./dist/realtime/index.js"
+    },
+    "./combat": {
+      "types": "./dist/combat/index.d.ts",
+      "default": "./dist/combat/index.js"
     }
   },
   "scripts": {

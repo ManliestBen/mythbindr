@@ -3,19 +3,36 @@ import type { Server as HttpServer } from 'http';
 import { isValidObjectId } from 'mongoose';
 import {
   toU8,
+  OpError,
   type Participant,
   type ClientToServerEvents,
   type ServerToClientEvents,
+  type LogEntry,
+  type SessionOp,
+  type NextTurnOp,
+  type PrevTurnOp,
+  type ApplyDamageOp,
+  type UpdateCombatantOp,
+  type AddCombatantOp,
+  type RemoveCombatantOp,
+  type AppendLogOp,
+  type EndSessionOp,
 } from '@mythbindr/shared';
 import { env } from '../lib/env';
 import { createSessionMiddleware } from '../lib/session';
 import { Element } from '../models/Element';
 import { Membership, type MembershipRole } from '../models/Membership';
 import { User } from '../models/User';
-import { GameSession, publicSession, type SessionDoc } from '../models/Session';
+import { GameSession } from '../models/Session';
 import { roleAtLeast } from '../campaigns/access';
 import { applyUpdate, joinRoom, leaveRoom } from './yElement';
-import { currentSeq } from './sessionRooms';
+import { broadcastRoomState, roomStatePayload, sessionRoom as sessionRoomName } from './sessionRooms';
+import {
+  applySessionOp,
+  getLiveRoom,
+  joinSessionRoom,
+  leaveSessionRoom,
+} from './sessionState';
 
 type IOServer = Server<ClientToServerEvents, ServerToClientEvents>;
 
@@ -68,25 +85,95 @@ export function initRealtime(server: HttpServer): IOServer {
       await emitPresence(room);
     });
 
-    // ── Session live-state room (Slice 1: read-only broadcast target) ───────
+    // ── Session live-state room (Plan 010: server-authoritative state) ─────
+    const sessionRoomIds = new Set<string>();
+
+    /**
+     * Apply one op through the live room and broadcast the result, or emit
+     * `session:opError` on rejection (bad cid, session already ended, …).
+     * Rejection messages are kept generic — never echo the attempted payload
+     * back — per the design doc's security notes.
+     */
+    async function applyAndBroadcast(sessionId: string, op: SessionOp): Promise<void> {
+      try {
+        applySessionOp(sessionId, op);
+      } catch (err) {
+        if (err instanceof OpError) {
+          console.error(`session op rejected (session ${sessionId}, ${op.kind}):`, err.message);
+          socket.emit('session:opError', { sessionId, message: 'Could not apply that change' });
+          return;
+        }
+        throw err;
+      }
+      const room = getLiveRoom(sessionId);
+      if (room) broadcastRoomState(sessionId, room);
+    }
+
     socket.on('session:join', async ({ sessionId }: { sessionId: string }) => {
       if (!(await canAccessSession(userId, sessionId, 'viewer'))) return;
-      await socket.join(`session:${sessionId}`);
-      // Fresh joiners get an immediate snapshot so they don't wait for the next write.
-      const s = await GameSession.findById(sessionId);
-      if (s) {
-        socket.emit('session:state', {
-          sessionId,
-          seq: currentSeq(sessionId),
-          session: publicSession(s as SessionDoc) as unknown as Parameters<
-            ServerToClientEvents['session:state']
-          >[0]['session'],
-        });
-      }
+      socket.data.displayName = socket.data.displayName ?? (await userName(userId));
+      await socket.join(sessionRoomName(sessionId));
+      sessionRoomIds.add(sessionId);
+      await joinSessionRoom(sessionId, socket.id);
+      // Fresh joiners get an immediate private snapshot so they don't wait for
+      // the next broadcast.
+      const room = getLiveRoom(sessionId);
+      if (room) socket.emit('session:state', roomStatePayload(sessionId, room));
     });
 
     socket.on('session:leave', ({ sessionId }: { sessionId: string }) => {
-      void socket.leave(`session:${sessionId}`);
+      sessionRoomIds.delete(sessionId);
+      void socket.leave(sessionRoomName(sessionId));
+      leaveSessionRoom(sessionId, socket.id);
+    });
+
+    socket.on('session:nextTurn', async ({ sessionId }: NextTurnOp) => {
+      if (!(await canAccessSession(userId, sessionId, 'editor'))) return;
+      await applyAndBroadcast(sessionId, { kind: 'nextTurn' });
+    });
+
+    socket.on('session:prevTurn', async ({ sessionId }: PrevTurnOp) => {
+      if (!(await canAccessSession(userId, sessionId, 'editor'))) return;
+      await applyAndBroadcast(sessionId, { kind: 'prevTurn' });
+    });
+
+    socket.on('session:applyDamage', async ({ sessionId, cid, amount }: ApplyDamageOp) => {
+      if (!(await canAccessSession(userId, sessionId, 'editor'))) return;
+      await applyAndBroadcast(sessionId, { kind: 'applyDamage', cid, amount });
+    });
+
+    socket.on(
+      'session:updateCombatant',
+      async ({ sessionId, cid, patch }: UpdateCombatantOp) => {
+        if (!(await canAccessSession(userId, sessionId, 'editor'))) return;
+        await applyAndBroadcast(sessionId, { kind: 'updateCombatant', cid, patch });
+      },
+    );
+
+    socket.on('session:addCombatant', async ({ sessionId, combatant }: AddCombatantOp) => {
+      if (!(await canAccessSession(userId, sessionId, 'editor'))) return;
+      await applyAndBroadcast(sessionId, { kind: 'addCombatant', combatant });
+    });
+
+    socket.on('session:removeCombatant', async ({ sessionId, cid }: RemoveCombatantOp) => {
+      if (!(await canAccessSession(userId, sessionId, 'editor'))) return;
+      await applyAndBroadcast(sessionId, { kind: 'removeCombatant', cid });
+    });
+
+    socket.on('session:appendLog', async ({ sessionId, kind, text }: AppendLogOp) => {
+      if (!(await canAccessSession(userId, sessionId, 'editor'))) return;
+      const entry: LogEntry = {
+        kind,
+        text,
+        at: new Date().toISOString(),
+        by: socket.data.displayName as string | undefined,
+      };
+      await applyAndBroadcast(sessionId, { kind: 'appendLog', entry });
+    });
+
+    socket.on('session:end', async ({ sessionId }: EndSessionOp) => {
+      if (!(await canAccessSession(userId, sessionId, 'editor'))) return;
+      await applyAndBroadcast(sessionId, { kind: 'end' });
     });
 
     // ── Yjs CRDT co-editing (editor-only) ──────────────────────────────────
@@ -120,6 +207,7 @@ export function initRealtime(server: HttpServer): IOServer {
 
     socket.on('disconnect', async () => {
       for (const elementId of yrooms) leaveRoom(elementId, socket.id);
+      for (const sessionId of sessionRoomIds) leaveSessionRoom(sessionId, socket.id);
       const room = socket.data.room as string | undefined;
       if (room) await emitPresence(room);
     });
