@@ -73,7 +73,12 @@ export default function ElementList() {
   const cfg = seg ? ELEMENT_TYPE_BY_SEGMENT[seg] : undefined;
   const [showTrash, setShowTrash] = useState(false);
   const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sort, setSort] = useState<'recent' | 'name'>('recent');
   const restore = useRestoreElement(cid ?? '');
+
+  // Types whose form has a status select get one-click filter chips.
+  const statusField = cfg?.dataFields?.find((f) => f.key === 'status' && f.kind === 'select');
 
   const { data: elements, isLoading, error } = useElements(cid ?? '', {
     type: cfg?.type,
@@ -95,12 +100,31 @@ export default function ElementList() {
     );
   }
 
-  const visible = (elements ?? []).filter(
-    (el) =>
-      !filter.trim() ||
-      el.name.toLowerCase().includes(filter.trim().toLowerCase()) ||
-      el.tags.some((t) => t.toLowerCase().includes(filter.trim().toLowerCase())),
-  );
+  const visible = (elements ?? [])
+    .filter(
+      (el) =>
+        !filter.trim() ||
+        el.name.toLowerCase().includes(filter.trim().toLowerCase()) ||
+        el.tags.some((t) => t.toLowerCase().includes(filter.trim().toLowerCase())),
+    )
+    .filter(
+      (el) =>
+        !statusFilter ||
+        String((el.data as Record<string, unknown>).status ?? '') === statusFilter,
+    )
+    .sort((a, b) =>
+      sort === 'name'
+        ? a.name.localeCompare(b.name)
+        : (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''),
+    );
+
+  const statusCounts: Record<string, number> = {};
+  if (statusField) {
+    for (const el of elements ?? []) {
+      const s = String((el.data as Record<string, unknown>).status ?? '');
+      if (s) statusCounts[s] = (statusCounts[s] ?? 0) + 1;
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -130,14 +154,67 @@ export default function ElementList() {
         </div>
       </div>
 
+      {statusField && !showTrash && (elements?.length ?? 0) > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          <button
+            onClick={() => setStatusFilter('')}
+            className={[
+              'rounded-full border px-2.5 py-1 text-xs',
+              statusFilter === ''
+                ? 'border-brand text-brand'
+                : 'border-app-border text-fg-muted hover:text-fg',
+            ].join(' ')}
+          >
+            All ({elements?.length ?? 0})
+          </button>
+          {(statusField.options ?? []).map((o) => (
+            <button
+              key={o}
+              onClick={() => setStatusFilter((cur) => (cur === o ? '' : o))}
+              className={[
+                'rounded-full border px-2.5 py-1 text-xs',
+                statusFilter === o
+                  ? 'border-brand text-brand'
+                  : 'border-app-border text-fg-muted hover:text-fg',
+              ].join(' ')}
+            >
+              {o} ({statusCounts[o] ?? 0})
+            </button>
+          ))}
+        </div>
+      )}
+
       {(elements?.length ?? 0) > 5 && (
-        <input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder={`Filter ${cfg.plural.toLowerCase()} by name or tag…`}
-          className="mt-4 w-full max-w-xs rounded-lg border border-app-border bg-app-bg px-3 py-1.5 text-sm outline-none focus:border-brand"
-          aria-label={`Filter ${cfg.plural}`}
-        />
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder={`Filter ${cfg.plural.toLowerCase()} by name or tag…`}
+            className="w-full max-w-xs rounded-lg border border-app-border bg-app-bg px-3 py-1.5 text-sm outline-none focus:border-brand"
+            aria-label={`Filter ${cfg.plural}`}
+          />
+          <div className="flex gap-1">
+            {(
+              [
+                ['recent', 'Recent'],
+                ['name', 'A–Z'],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setSort(key)}
+                className={[
+                  'rounded-lg border px-2.5 py-1 text-xs',
+                  sort === key
+                    ? 'border-brand text-brand'
+                    : 'border-app-border text-fg-muted hover:text-fg',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="mt-4">
@@ -172,7 +249,10 @@ export default function ElementList() {
         )}
 
         {elements && elements.length > 0 && visible.length === 0 && (
-          <p className="text-sm text-fg-muted">Nothing matches “{filter}”.</p>
+          <p className="text-sm text-fg-muted">
+            Nothing matches{filter.trim() ? <> “{filter}”</> : ''}
+            {statusFilter ? <> with status “{statusFilter}”</> : ''}.
+          </p>
         )}
 
         {visible.length > 0 && (
