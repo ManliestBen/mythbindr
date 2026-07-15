@@ -1,32 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Condition, Combatant, LogEntry } from '@mythbindr/shared';
 import { apiGet, apiPatch, apiPost } from '../lib/api';
 import { qk } from '../lib/queryKeys';
 
-export interface Condition {
-  name: string;
-  rounds: number | null;
-}
-
-export interface Combatant {
-  cid: string;
-  name: string;
-  initiative: number;
-  maxHp: number;
-  currentHp: number;
-  tempHp: number;
-  conditions: Condition[];
-  deathSaves: { successes: number; failures: number };
-  isPlayer: boolean;
-  sourceElementId: string | null;
-  notes: string;
-}
-
-export interface LogEntry {
-  at?: string;
-  kind: 'roll' | 'note' | 'event';
-  text: string;
-  by?: string;
-}
+export type { Condition, Combatant, LogEntry };
 
 export interface GameSessionT {
   id: string;
