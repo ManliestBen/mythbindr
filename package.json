@@ -16,6 +16,10 @@
     "build": "npm run build:shared && npm run build -w @mythbindr/back && npm run build -w @mythbindr/front",
     "typecheck": "npm run build:shared && npm run typecheck -w @mythbindr/back && npm run typecheck -w @mythbindr/front",
     "dev:back": "npm run dev -w @mythbindr/back",
-    "dev:front": "npm run dev -w @mythbindr/front"
+    "dev:front": "npm run dev -w @mythbindr/front",
+    "test": "npm run build:shared && vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
   }
 }
