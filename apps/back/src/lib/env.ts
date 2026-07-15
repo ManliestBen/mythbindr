@@ -20,7 +20,10 @@ export const env = {
   port: Number(process.env.PORT ?? 4000),
   clientOrigin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
   mongodbUri: required('MONGODB_URI'),
-  sessionSecret: process.env.SESSION_SECRET ?? 'dev-insecure-secret-change-me',
+  sessionSecret:
+    process.env.NODE_ENV === 'production'
+      ? required('SESSION_SECRET')
+      : process.env.SESSION_SECRET ?? 'dev-insecure-secret-change-me',
   rp: {
     id: process.env.RP_ID ?? 'localhost',
     name: process.env.RP_NAME ?? 'MythBindr',

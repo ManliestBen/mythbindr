@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import crypto from 'crypto';
 import {
   generateRegistrationOptions,
@@ -13,6 +13,13 @@ import { rpID, rpName, expectedOrigin } from '../lib/webauthn';
 import { asyncHandler, requireAuth } from './middleware';
 
 const router = Router();
+
+/** Rotate the session id across the login privilege boundary (fixation hardening). */
+function regenerateSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) =>
+    req.session.regenerate((err) => (err ? reject(err) : resolve())),
+  );
+}
 
 const ALLOWED_THEMES = [
   'mythic-gold',
@@ -116,6 +123,7 @@ router.post(
       lastUsedAt: new Date(),
     });
 
+    await regenerateSession(req);
     req.session.userId = String(user._id);
     req.session.currentChallenge = undefined;
     req.session.pendingRegistration = undefined;
@@ -147,7 +155,7 @@ router.post(
 
     const credential = await Credential.findOne({ credentialID: req.body?.id });
     if (!credential) {
-      return res.status(400).json({ error: 'Unrecognized passkey' });
+      return res.status(400).json({ error: 'Could not verify passkey' });
     }
 
     let verification;
@@ -179,6 +187,7 @@ router.post(
     credential.lastUsedAt = new Date();
     await credential.save();
 
+    await regenerateSession(req);
     req.session.userId = String(credential.userId);
     req.session.currentChallenge = undefined;
 

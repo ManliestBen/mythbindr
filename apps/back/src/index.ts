@@ -1,6 +1,7 @@
 import http from 'http';
 import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
+import { rateLimit } from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { initRealtime, getIO } from './realtime/io';
 import { env } from './lib/env';
@@ -30,6 +31,11 @@ async function main(): Promise<void> {
   app.use(express.json({ limit: '5mb' }));
   app.use(createSessionMiddleware());
 
+  // Strict bucket on unauthenticated surfaces; generous bucket on AI (paid API).
+  const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 100, standardHeaders: true, legacyHeaders: false });
+  const shareLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 300, standardHeaders: true, legacyHeaders: false });
+  const aiLimiter = rateLimit({ windowMs: 60 * 60_000, limit: 30, standardHeaders: true, legacyHeaders: false });
+
   app.get('/api/health', (_req, res) => {
     res.json({
       status: 'ok',
@@ -39,17 +45,17 @@ async function main(): Promise<void> {
     });
   });
 
-  app.use('/api/auth', authRoutes);
+  app.use('/api/auth', authLimiter, authRoutes);
   app.use('/api/integrations/spotify', spotifyRoutes);
   app.use('/api/campaigns', campaignRoutes);
   app.use('/api/campaigns/:cid/elements', elementRoutes);
   app.use('/api/campaigns/:cid', collabRoutes);
   app.use('/api/campaigns/:cid', sessionRoutes);
-  app.use('/api/campaigns/:cid/ai', scopedAiRoutes);
-  app.use('/api/ai', globalAiRoutes);
+  app.use('/api/campaigns/:cid/ai', aiLimiter, scopedAiRoutes);
+  app.use('/api/ai', aiLimiter, globalAiRoutes);
   app.use('/api/invites', inviteRoutes);
   app.use('/api/srd', srdRoutes);
-  app.use('/api/share', shareRoutes); // public — no auth
+  app.use('/api/share', shareLimiter, shareRoutes); // public — no auth
 
   const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     console.error('Unhandled error:', err);

@@ -1,8 +1,11 @@
 import { Router, type Response } from 'express';
+import type { z } from 'zod';
 import { asyncHandler, requireAdmin, requireAuth } from '../auth/middleware';
 import { requireCampaignAccess } from '../campaigns/access';
+import { validate } from '../lib/validate';
 import { contentGenerator } from './generator';
-import { ELEMENT_TYPES, type ElementType } from '@mythbindr/shared';
+import { aiCampaignSchema, aiElementSchema, aiRefineSchema } from './schemas';
+import { ELEMENT_TYPES } from '@mythbindr/shared';
 import { Campaign, publicCampaign, type CampaignDoc } from '../models/Campaign';
 import { Membership } from '../models/Membership';
 import { Element } from '../models/Element';
@@ -23,18 +26,10 @@ scopedAiRoutes.post(
   '/element',
   requireCampaignAccess('editor'),
   requireAdmin,
+  validate(aiElementSchema),
   asyncHandler(async (req, res) => {
     if (!ensureConfigured(res)) return;
-    const type = req.body?.type as ElementType;
-    const prompt = String(req.body?.prompt ?? '').trim();
-    if (!ELEMENT_TYPES.includes(type)) {
-      res.status(400).json({ error: 'Invalid element type' });
-      return;
-    }
-    if (!prompt) {
-      res.status(400).json({ error: 'A brief is required' });
-      return;
-    }
+    const { type, prompt } = req.body as z.infer<typeof aiElementSchema>;
     try {
       const element = await contentGenerator.generateElement({
         type,
@@ -53,14 +48,10 @@ scopedAiRoutes.post(
   '/refine',
   requireCampaignAccess('editor'),
   requireAdmin,
+  validate(aiRefineSchema),
   asyncHandler(async (req, res) => {
     if (!ensureConfigured(res)) return;
-    const text = String(req.body?.text ?? '');
-    const action = String(req.body?.action ?? '').trim();
-    if (!text || !action) {
-      res.status(400).json({ error: 'text and action are required' });
-      return;
-    }
+    const { text, action } = req.body as z.infer<typeof aiRefineSchema>;
     try {
       const refined = await contentGenerator.refineText({ text, action });
       res.json({ text: refined });
@@ -77,13 +68,10 @@ globalAiRoutes.use(requireAuth, requireAdmin);
 
 globalAiRoutes.post(
   '/campaign',
+  validate(aiCampaignSchema),
   asyncHandler(async (req, res) => {
     if (!ensureConfigured(res)) return;
-    const prompt = String(req.body?.prompt ?? '').trim();
-    if (!prompt) {
-      res.status(400).json({ error: 'A premise is required' });
-      return;
-    }
+    const { prompt } = req.body as z.infer<typeof aiCampaignSchema>;
     let gen;
     try {
       gen = await contentGenerator.generateCampaign({ prompt });
