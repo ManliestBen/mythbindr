@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CONDITIONS, type Combatant } from '../../data/session';
+import { applyHeal } from '../../lib/combat';
 
 export default function CombatantCard({
   c,
@@ -46,8 +47,7 @@ export default function CombatantCard({
     setAmt('');
   };
   const heal = () => {
-    const max = c.maxHp || c.currentHp + n;
-    onChange({ ...c, currentHp: Math.min(c.currentHp + n, max) });
+    onChange(applyHeal(c, n));
     setAmt('');
   };
 
