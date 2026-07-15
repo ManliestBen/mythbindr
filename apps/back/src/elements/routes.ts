@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isValidObjectId } from 'mongoose';
+import { isValidObjectId, Types } from 'mongoose';
 import { Element, publicElement, type ElementDoc } from '../models/Element';
 import { asyncHandler } from '../auth/middleware';
 import { requireCampaignAccess } from '../campaigns/access';
@@ -115,28 +115,11 @@ router.patch(
       return;
     }
     const b = parsed.data as Record<string, unknown>;
-    const $set: Record<string, unknown> = { updatedBy: req.session.userId };
+    const $set: Record<string, unknown> = { updatedBy: new Types.ObjectId(req.session.userId) };
     if (b.name !== undefined) $set.name = b.name;
     if (b.body !== undefined) {
       $set.body = b.body;
       $set.bodyText = deriveBodyText(b.body);
-    }
-    // Recompute links when body and/or relationships change; preserve the other kind.
-    if (b.body !== undefined || b.relationships !== undefined) {
-      const existing = (el.links ?? []).map((l) => ({
-        targetId: l.targetId,
-        relType: l.relType,
-        source: l.source,
-      }));
-      const mention =
-        b.body !== undefined
-          ? mentionLinks(b.body)
-          : existing.filter((l) => l.source === 'mention');
-      const rel =
-        b.relationships !== undefined
-          ? relationshipLinks(b.relationships)
-          : existing.filter((l) => l.source === 'relationship');
-      $set.links = [...rel, ...mention];
     }
     if (b.tags !== undefined) $set.tags = b.tags;
     if (b.playerVisible !== undefined) $set.playerVisible = b.playerVisible;
@@ -144,9 +127,47 @@ router.patch(
     if (b.soundtrack !== undefined) $set.soundtrack = b.soundtrack;
     if (b.data !== undefined) $set.data = b.data; // whole-subdoc replace
 
+    // Recompute links when body and/or relationships change; preserve the other
+    // kind atomically via a pipeline update so a concurrent collab save can't
+    // clobber what it just wrote (no read-then-write on `links`).
+    const linkStages: Record<string, unknown>[] = [];
+    if (b.body !== undefined || b.relationships !== undefined) {
+      const keepSource =
+        b.body !== undefined && b.relationships === undefined
+          ? 'relationship' // body changed → keep stored relationships
+          : b.relationships !== undefined && b.body === undefined
+            ? 'mention' // relationships changed → keep stored mentions
+            : null; // both changed → full replace
+      const fresh = [
+        ...(b.relationships !== undefined ? relationshipLinks(b.relationships) : []),
+        ...(b.body !== undefined ? mentionLinks(b.body) : []),
+      ].map((l) => ({ ...l, targetId: new Types.ObjectId(l.targetId as string) }));
+      linkStages.push({
+        $set: {
+          links: keepSource
+            ? {
+                $concatArrays: [
+                  {
+                    $filter: {
+                      input: { $ifNull: ['$links', []] },
+                      cond: { $eq: ['$$this.source', keepSource] },
+                    },
+                  },
+                  { $literal: fresh },
+                ],
+              }
+            : { $literal: fresh },
+        },
+      });
+    }
+
     const updated = await Element.findByIdAndUpdate(
       el._id,
-      { $set, $inc: { version: 1 } },
+      [
+        { $set: Object.fromEntries(Object.entries($set).map(([k, v]) => [k, { $literal: v }])) },
+        ...linkStages,
+        { $set: { version: { $add: [{ $ifNull: ['$version', 0] }, 1] } } },
+      ],
       { new: true },
     );
     void logActivity({
