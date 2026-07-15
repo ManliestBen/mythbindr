@@ -12,8 +12,10 @@ import { createSessionMiddleware } from '../lib/session';
 import { Element } from '../models/Element';
 import { Membership, type MembershipRole } from '../models/Membership';
 import { User } from '../models/User';
+import { GameSession, publicSession, type SessionDoc } from '../models/Session';
 import { roleAtLeast } from '../campaigns/access';
 import { applyUpdate, joinRoom, leaveRoom } from './yElement';
+import { currentSeq } from './sessionRooms';
 
 type IOServer = Server<ClientToServerEvents, ServerToClientEvents>;
 
@@ -64,6 +66,27 @@ export function initRealtime(server: HttpServer): IOServer {
       const room = `el:${elementId}`;
       await socket.leave(room);
       await emitPresence(room);
+    });
+
+    // ── Session live-state room (Slice 1: read-only broadcast target) ───────
+    socket.on('session:join', async ({ sessionId }: { sessionId: string }) => {
+      if (!(await canAccessSession(userId, sessionId, 'viewer'))) return;
+      await socket.join(`session:${sessionId}`);
+      // Fresh joiners get an immediate snapshot so they don't wait for the next write.
+      const s = await GameSession.findById(sessionId);
+      if (s) {
+        socket.emit('session:state', {
+          sessionId,
+          seq: currentSeq(sessionId),
+          session: publicSession(s as SessionDoc) as unknown as Parameters<
+            ServerToClientEvents['session:state']
+          >[0]['session'],
+        });
+      }
+    });
+
+    socket.on('session:leave', ({ sessionId }: { sessionId: string }) => {
+      void socket.leave(`session:${sessionId}`);
     });
 
     // ── Yjs CRDT co-editing (editor-only) ──────────────────────────────────
@@ -130,6 +153,18 @@ async function canAccessElement(
   const el = await Element.findById(elementId).select('campaignId');
   if (!el) return false;
   const m = await Membership.findOne({ campaignId: el.campaignId, userId });
+  return !!m && roleAtLeast(m.role as MembershipRole, min);
+}
+
+async function canAccessSession(
+  userId: string,
+  sessionId: string,
+  min: MembershipRole,
+): Promise<boolean> {
+  if (!isValidObjectId(sessionId)) return false;
+  const s = await GameSession.findById(sessionId).select('campaignId');
+  if (!s) return false;
+  const m = await Membership.findOne({ campaignId: s.campaignId, userId });
   return !!m && roleAtLeast(m.role as MembershipRole, min);
 }
 

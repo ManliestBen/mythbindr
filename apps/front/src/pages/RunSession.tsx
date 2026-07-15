@@ -8,6 +8,7 @@ import {
   type Combatant,
   type GameSessionT,
 } from '../data/session';
+import { useSessionChannel } from '../realtime/useSessionChannel';
 import CombatantCard from '../components/session/CombatantCard';
 import AddCombatant from '../components/session/AddCombatant';
 import DiceRoller from '../components/session/DiceRoller';
@@ -126,6 +127,14 @@ export default function RunSession() {
       }),
     [persist],
   );
+
+  useSessionChannel(cid, session?.id, (remote) => {
+    // Slice-1 conflict posture (docs/design/live-session.md): adopt remote state
+    // only when this tab has nothing in flight — a buffered edit (dirty/timer)
+    // or a pending PATCH wins locally and reconciles on its own onSuccess.
+    if (dirty || timer.current || update.isPending) return;
+    setSession(remote);
+  });
 
   const addLog = useCallback(
     (kind: 'roll' | 'note' | 'event', text: string) =>

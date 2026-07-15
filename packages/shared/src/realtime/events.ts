@@ -31,6 +31,29 @@ export interface YjsInitPayload extends ElementRef {
   seedFrom: unknown;
 }
 
+/** Envelope identifying which game-session room an event targets. */
+export interface SessionRef {
+  sessionId: string;
+}
+
+/** Full session snapshot broadcast on join and after every persisted write.
+ *  `session` is exactly the REST `publicSession` shape (the client's GameSessionT);
+ *  `seq` is a monotonic per-room counter so clients can detect missed broadcasts. */
+export interface SessionStatePayload extends SessionRef {
+  seq: number;
+  session: {
+    id: string;
+    status: 'active' | 'ended';
+    sourceEncounterId: string | null;
+    round: number;
+    turnIndex: number;
+    combatants: unknown[]; // typed loosely here; Plan 010 moves Combatant into shared
+    log: unknown[];
+    startedAt: string | Date;
+    endedAt: string | Date | null;
+  };
+}
+
 /** Events the browser sends to the server. */
 export interface ClientToServerEvents {
   'element:join': (p: ElementRef) => void;
@@ -39,6 +62,8 @@ export interface ClientToServerEvents {
   'yjs:update': (p: ElementBinary) => void;
   'yjs:awareness': (p: ElementBinary) => void;
   'yjs:leave': (p: ElementRef) => void;
+  'session:join': (p: SessionRef) => void;
+  'session:leave': (p: SessionRef) => void;
 }
 
 /** Events the server emits to the browser. */
@@ -47,4 +72,5 @@ export interface ServerToClientEvents {
   'yjs:init': (p: YjsInitPayload) => void;
   'yjs:update': (p: ElementBinary) => void;
   'yjs:awareness': (p: ElementBinary) => void;
+  'session:state': (p: SessionStatePayload) => void;
 }

@@ -7,6 +7,7 @@ import { GameSession, publicSession, type SessionDoc } from '../models/Session';
 import { Element } from '../models/Element';
 import { sessionStartSchema, sessionUpdateSchema } from '@mythbindr/shared';
 import { parseCombatants } from './combatants';
+import { broadcastSessionState } from '../realtime/sessionRooms';
 
 const router = Router({ mergeParams: true });
 
@@ -56,6 +57,7 @@ router.post(
       sourceEncounterId,
       combatants,
     });
+    broadcastSessionState(s as SessionDoc);
     res.status(201).json({ session: publicSession(s as SessionDoc) });
   }),
 );
@@ -84,6 +86,7 @@ router.patch(
       res.status(404).json({ error: 'Session not found' });
       return;
     }
+    broadcastSessionState(s as SessionDoc);
     res.json({ session: publicSession(s as SessionDoc) });
   }),
 );
@@ -106,6 +109,7 @@ router.post(
       res.status(404).json({ error: 'Session not found' });
       return;
     }
+    broadcastSessionState(s as SessionDoc);
     res.json({ session: publicSession(s as SessionDoc) });
   }),
 );
