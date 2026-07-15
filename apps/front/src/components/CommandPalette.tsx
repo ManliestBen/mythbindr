@@ -125,6 +125,12 @@ export default function CommandPalette({
           label: 'Members & invites',
           run: () => go(`/campaigns/${cid}/members`),
         },
+        {
+          key: 'map',
+          group: 'Actions',
+          label: 'Relationship map',
+          run: () => go(`/campaigns/${cid}/map`),
+        },
       );
     }
     actions.push(

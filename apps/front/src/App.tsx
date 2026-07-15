@@ -11,6 +11,7 @@ import CampaignHome from './pages/CampaignHome';
 import ElementList from './pages/ElementList';
 import ElementEditor from './pages/ElementEditor';
 import SearchResults from './pages/SearchResults';
+import CampaignMap from './pages/CampaignMap';
 import Members from './pages/Members';
 import AcceptInvite from './pages/AcceptInvite';
 import RunSession from './pages/RunSession';
@@ -62,6 +63,7 @@ export default function App() {
                 <Route path="campaigns/:cid/members" element={<Members />} />
                 <Route path="campaigns/:cid/session" element={<RunSession />} />
                 <Route path="campaigns/:cid/search" element={<SearchResults />} />
+                <Route path="campaigns/:cid/map" element={<CampaignMap />} />
                 <Route path="invite/:token" element={<AcceptInvite />} />
                 <Route path="campaigns/:cid/:type" element={<ElementList />} />
                 <Route path="campaigns/:cid/:type/:elementId" element={<ElementEditor />} />
