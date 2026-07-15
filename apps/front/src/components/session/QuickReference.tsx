@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
 import { useSrdList, useSrdResource } from '../../data/srd';
 import { useCreateElement } from '../../data/elements';
-import { rollQuickNpc, type QuickNpcResult } from '../../lib/generators';
+import {
+  randomLoot,
+  randomPlotHook,
+  randomTavern,
+  rollQuickNpc,
+  type QuickNpcResult,
+} from '../../lib/generators';
 
 /**
  * Slide-over rules drawer for Run Session: SRD conditions, the actions every
@@ -28,6 +34,46 @@ const COMBAT_ACTIONS: { name: string; text: string }[] = [
   { name: 'Shove (special)', text: 'Replaces one attack: same contest as grappling. On a win, push the target 5 ft or knock it prone.' },
   { name: 'Opportunity Attack', text: 'Reaction: one melee attack against a creature that moves out of your reach (unless it Disengaged or teleported).' },
 ];
+
+/** One-line generator: roll → show → optionally log to the session. */
+function GenRow({
+  label,
+  value,
+  onRoll,
+  onLog,
+}: {
+  label: string;
+  value: string | null;
+  onRoll: () => void;
+  onLog?: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-fg-muted">
+          {label}
+        </span>
+        <span className="flex gap-1.5">
+          <button
+            onClick={onRoll}
+            className="rounded-md border border-app-border px-2 py-0.5 text-[11px] text-fg-muted hover:border-brand hover:text-brand"
+          >
+            🎲 Roll
+          </button>
+          {onLog && (
+            <button
+              onClick={onLog}
+              className="rounded-md border border-app-border px-2 py-0.5 text-[11px] text-fg-muted hover:text-fg"
+            >
+              Log
+            </button>
+          )}
+        </span>
+      </div>
+      {value && <p className="mt-1 text-sm">{value}</p>}
+    </div>
+  );
+}
 
 function ConditionRow({ slug, name }: { slug: string; name: string }) {
   const [open, setOpen] = useState(false);
@@ -69,6 +115,9 @@ export default function QuickReference({
   const [npc, setNpc] = useState<QuickNpcResult>(() => rollQuickNpc());
   const createNpc = useCreateElement(campaignId);
   const [savedName, setSavedName] = useState<string | null>(null);
+  const [tavern, setTavern] = useState<string | null>(null);
+  const [loot, setLoot] = useState<string | null>(null);
+  const [hook, setHook] = useState<string | null>(null);
 
   const filteredActions = useMemo(
     () =>
@@ -136,7 +185,7 @@ export default function QuickReference({
         <div className="flex items-center gap-1">
           {tabBtn('conditions', 'Conditions')}
           {tabBtn('actions', 'Actions')}
-          {tabBtn('npc', 'Quick NPC')}
+          {tabBtn('npc', 'Improv')}
         </div>
         <button
           onClick={onClose}
@@ -235,6 +284,27 @@ export default function QuickReference({
             {createNpc.isError && (
               <p className="mt-2 text-xs text-red-400">Could not save — try again.</p>
             )}
+
+            <div className="mt-5 space-y-3 border-t border-app-border pt-4">
+              <GenRow
+                label="Tavern"
+                value={tavern}
+                onRoll={() => setTavern(randomTavern())}
+                onLog={tavern ? () => onLog(`Tavern: ${tavern}`) : undefined}
+              />
+              <GenRow
+                label="Pocket loot"
+                value={loot}
+                onRoll={() => setLoot(randomLoot())}
+                onLog={loot ? () => onLog(`Loot found: ${loot}`) : undefined}
+              />
+              <GenRow
+                label="Plot hook"
+                value={hook}
+                onRoll={() => setHook(randomPlotHook())}
+                onLog={hook ? () => onLog(`Hook dropped: ${hook}`) : undefined}
+              />
+            </div>
           </div>
         )}
       </div>

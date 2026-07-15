@@ -36,6 +36,49 @@ export function rollQuickNpc(): QuickNpcResult {
   };
 }
 
+// ── Taverns, loot & plot hooks (more mid-session improv) ────────────────────
+
+const TAVERN_A = ['The Gilded', 'The Prancing', 'The Rusty', 'The Laughing', 'The Drunken', 'The Broken', 'The Silver', 'The Wandering', 'The Salty', 'The Crooked', 'The Sleeping', 'The Thirsty'];
+const TAVERN_B = ['Griffin', 'Pony', 'Flagon', 'Kraken', 'Goblin', 'Anvil', 'Stag', 'Minstrel', 'Barnacle', 'Crow', 'Dragon', 'Lantern'];
+const TAVERN_DETAIL = ['known for its eel pie', 'where the ale is watered and everyone knows it', 'with a fighting pit in the cellar', 'whose barkeep hears everything', 'that never seems to close', 'frequented by off-duty guards', 'with a suspiciously good bard', 'where strangers get one free drink and many questions'];
+
+export function randomTavern(): string {
+  return `${pick(TAVERN_A)} ${pick(TAVERN_B)} — ${pick(TAVERN_DETAIL)}`;
+}
+
+const TRINKETS = ['a brass key that fits no known lock', 'a tiny portrait of a scowling noble', 'a wooden holy symbol, scorched on one side', 'a dried flower that never crumbles', 'a set of loaded dice (well made)', 'a glass eye that feels warm', 'a love letter, unsigned', 'a map fragment with a red X', 'a silver locket that hums near magic'];
+const MINOR_MAGIC = ['a potion of healing', 'two potions of healing', 'a scroll of a random 1st-level spell', 'a bag of 3 glowing pebbles (light, once each)', 'a +1 dagger with a previous owner\'s initials', 'a cloak clasp that keeps the wearer dry in rain', 'boots that never squeak'];
+const GOOD_MAGIC = ['a +1 weapon of the finder\'s choice', 'a wand of magic missiles (3 charges left)', 'bracers of archery', 'a bag of holding with something already inside', 'a potion of greater healing and a mystery potion'];
+
+/** Rarity-weighted pocket loot: mostly coin and trinkets, occasionally magic. */
+export function randomLoot(): string {
+  const roll = Math.random() * 100;
+  const gp = Math.floor(Math.random() * 40) + 5;
+  if (roll < 45) return `${gp} gp and ${pick(TRINKETS)}`;
+  if (roll < 75) return `${gp * 3} gp in mixed coin`;
+  if (roll < 95) return `${gp} gp and ${pick(MINOR_MAGIC)}`;
+  return `${gp * 2} gp and ${pick(GOOD_MAGIC)}`;
+}
+
+const PLOT_HOOKS = [
+  'A funeral procession passes — the "corpse" is knocking.',
+  'Every rat in town is running the same direction.',
+  'A child sells maps to a dungeon that shouldn\'t exist. They\'re accurate.',
+  'The tavern goes silent: a wanted poster bears a party member\'s face.',
+  'A noble hires mourners for a funeral that hasn\'t happened yet — the date is tomorrow.',
+  'Two identical strangers accuse each other of being a doppelganger.',
+  'The village well started echoing conversations from somewhere else.',
+  'A courier collapses at the gate clutching a sealed letter addressed to one of the party.',
+  'All the statues in the square are facing a different way than yesterday.',
+  'A hunting party returns one member short and refuses to speak of it.',
+  'The moon rose two hours early, and only the party seems to have noticed.',
+  'An old rival of a party member is buying drinks for the whole tavern — and smiling.',
+];
+
+export function randomPlotHook(): string {
+  return pick(PLOT_HOOKS);
+}
+
 // ── Pregen party (SRD-legal basics) ─────────────────────────────────────────
 
 interface ClassSpec {
