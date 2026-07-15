@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCampaigns, useCreateCampaign, type CampaignFormValues } from '../data/campaigns';
+import {
+  useCampaigns,
+  useCreateCampaign,
+  useImportCampaign,
+  type CampaignFormValues,
+} from '../data/campaigns';
 import { useGenerateCampaign } from '../data/ai';
 import { useAuth } from '../auth/AuthProvider';
 import CampaignForm from '../components/CampaignForm';
@@ -11,7 +16,25 @@ export default function Campaigns() {
   const { data: campaigns, isLoading, error } = useCampaigns();
   const create = useCreateCampaign();
   const genCampaign = useGenerateCampaign();
+  const importCampaign = useImportCampaign();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+
+  const onImportFile = async (file: File | undefined) => {
+    if (!file) return;
+    setImportError(null);
+    try {
+      const payload = JSON.parse(await file.text());
+      importCampaign.mutate(payload, {
+        onSuccess: (r) => navigate(`/campaigns/${r.campaign.id}`),
+        onError: (err) =>
+          setImportError(err instanceof Error ? err.message : 'Import failed'),
+      });
+    } catch {
+      setImportError('That file is not valid JSON.');
+    }
+  };
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const navigate = useNavigate();
@@ -38,15 +61,37 @@ export default function Campaigns() {
             </button>
           )}
           {!creating && (
-            <button
-              onClick={() => setCreating(true)}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-app-bg hover:bg-brand-bright"
-            >
-              + New campaign
-            </button>
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  onImportFile(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={importCampaign.isPending}
+                title="Restore a campaign from a MythBindr .json export"
+                className="rounded-lg border border-app-border px-4 py-2 text-sm text-fg-muted hover:text-fg disabled:opacity-50"
+              >
+                {importCampaign.isPending ? 'Importing…' : 'Import'}
+              </button>
+              <button
+                onClick={() => setCreating(true)}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-app-bg hover:bg-brand-bright"
+              >
+                + New campaign
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {importError && <p className="mt-3 text-sm text-red-400">{importError}</p>}
 
       {aiOpen && (
         <section className="mt-6 rounded-xl border border-app-border bg-app-surface p-5">

@@ -5,7 +5,7 @@ import { Element } from '../models/Element';
 import { Membership } from '../models/Membership';
 import { asyncHandler, requireAuth } from '../auth/middleware';
 import { validate } from '../lib/validate';
-import { campaignCreateSchema, campaignUpdateSchema } from '@mythbindr/shared';
+import { ELEMENT_TYPES, campaignCreateSchema, campaignUpdateSchema } from '@mythbindr/shared';
 import { requireCampaignAccess } from './access';
 import { exportJson, exportMarkdown } from '../share/exportCampaign';
 import type { ElementDoc } from '../models/Element';
@@ -146,6 +146,99 @@ router.get(
         updatedAt: r.updatedAt,
       })),
       storySoFar: (req.campaign as CampaignDoc).storySoFar,
+    });
+  }),
+);
+
+// ── Import a previously exported campaign (round-trips the JSON export) ────
+router.post(
+  '/import',
+  asyncHandler(async (req, res) => {
+    const payload = req.body as {
+      format?: string;
+      campaign?: Record<string, unknown>;
+      elements?: Record<string, unknown>[];
+    };
+    if (payload?.format !== 'mythbindr-campaign' || !payload.campaign) {
+      res.status(400).json({ error: 'Not a MythBindr campaign export' });
+      return;
+    }
+    const src = payload.campaign;
+    const campaign = await Campaign.create({
+      name: String(src.name ?? 'Imported campaign').slice(0, 120),
+      hook: String(src.hook ?? '').slice(0, 280),
+      premise: src.premise,
+      tone: Array.isArray(src.tone) ? src.tone : [],
+      startLevel: Number(src.startLevel) || 1,
+      endLevel: Number(src.endLevel) || 20,
+      settingName: String(src.settingName ?? '').slice(0, 120),
+      storySoFar: String(src.storySoFar ?? '').slice(0, 20000),
+      moodSlots: Array.isArray(src.moodSlots) ? src.moodSlots : [],
+      ownerId: req.session.userId,
+      updatedBy: req.session.userId,
+    });
+    await Membership.create({
+      campaignId: campaign._id,
+      userId: req.session.userId,
+      role: 'owner',
+    });
+
+    const srcElements = (payload.elements ?? []).filter(
+      (e) =>
+        e &&
+        typeof e.name === 'string' &&
+        (ELEMENT_TYPES as readonly string[]).includes(e.type as string),
+    );
+    // Pre-assign new ids so cross-element links and @mentions can be remapped.
+    const idMap = new Map<string, mongoose.Types.ObjectId>();
+    for (const e of srcElements) {
+      if (typeof e.id === 'string') idMap.set(e.id, new mongoose.Types.ObjectId());
+    }
+    const remapIds = (node: unknown): unknown => {
+      if (Array.isArray(node)) return node.map(remapIds);
+      if (node && typeof node === 'object') {
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+          out[k] =
+            typeof v === 'string' && idMap.has(v) ? String(idMap.get(v)) : remapIds(v);
+        }
+        return out;
+      }
+      return node;
+    };
+
+    const { deriveBodyText } = await import('../elements/bodyText');
+    const docs = srcElements.map((e) => {
+      const body = remapIds(e.body);
+      const links = Array.isArray(e.links)
+        ? (e.links as { targetId?: string; relType?: string; source?: string }[])
+            .filter((l) => l.targetId && idMap.has(l.targetId))
+            .map((l) => ({
+              targetId: idMap.get(l.targetId as string),
+              relType: String(l.relType ?? ''),
+              source: l.source === 'mention' ? 'mention' : 'relationship',
+            }))
+        : [];
+      return {
+        _id: typeof e.id === 'string' ? idMap.get(e.id) : new mongoose.Types.ObjectId(),
+        campaignId: campaign._id,
+        type: e.type,
+        name: String(e.name).slice(0, 200),
+        body,
+        bodyText: deriveBodyText(body),
+        tags: Array.isArray(e.tags) ? e.tags : [],
+        links,
+        data: e.data && typeof e.data === 'object' ? e.data : {},
+        playerVisible: Boolean(e.playerVisible),
+        secrets: String(e.secrets ?? ''),
+        updatedBy: req.session.userId,
+      };
+    });
+    if (docs.length) await Element.insertMany(docs);
+
+    res.status(201).json({
+      campaign: publicCampaign(campaign as CampaignDoc),
+      elementCount: docs.length,
     });
   }),
 );

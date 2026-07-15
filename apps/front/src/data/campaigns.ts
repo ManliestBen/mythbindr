@@ -82,6 +82,18 @@ export function useDeleteCampaign() {
   });
 }
 
+export function useImportCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: unknown) =>
+      apiPost<{ campaign: Campaign; elementCount: number }>(
+        '/api/campaigns/import',
+        payload,
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.campaigns() }),
+  });
+}
+
 export function useDuplicateCampaign() {
   const qc = useQueryClient();
   return useMutation({

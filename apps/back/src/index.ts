@@ -26,7 +26,8 @@ async function main(): Promise<void> {
     app.set('trust proxy', 1); // honor X-Forwarded-Proto for Secure cookies
   }
   app.use(cors({ origin: env.clientOrigin, credentials: true }));
-  app.use(express.json());
+  // 5mb so a full campaign export can be re-imported.
+  app.use(express.json({ limit: '5mb' }));
   app.use(createSessionMiddleware());
 
   app.get('/api/health', (_req, res) => {
