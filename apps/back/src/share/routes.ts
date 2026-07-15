@@ -25,7 +25,9 @@ router.get(
       res.status(404).json({ error: 'Share link not found' });
       return;
     }
-    res.json({ campaign: { name: r.campaign.name }, valid: true });
+    // `scope` leaks nothing sensitive — it's the client's own routing hint
+    // (campaign-lore view vs. live table view).
+    res.json({ campaign: { name: r.campaign.name }, valid: true, scope: r.link.scope });
   }),
 );
 

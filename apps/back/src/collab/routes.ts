@@ -1,13 +1,16 @@
 import { Router, type Request } from 'express';
 import crypto from 'crypto';
+import { z } from 'zod';
 import { isValidObjectId } from 'mongoose';
 import { env } from '../lib/env';
 import { asyncHandler } from '../auth/middleware';
 import { requireCampaignAccess } from '../campaigns/access';
+import { validate } from '../lib/validate';
 import { Membership } from '../models/Membership';
 import { Invite, type InviteDoc } from '../models/Invite';
 import { Activity } from '../models/Activity';
 import { ShareLink, type ShareLinkDoc } from '../models/ShareLink';
+import { disconnectShareToken } from '../realtime/shareNamespace';
 
 // mergeParams so `:cid` from /api/campaigns/:cid is available.
 const router = Router({ mergeParams: true });
@@ -161,23 +164,35 @@ router.get(
 );
 
 // ── Player share links (owner-only) ────────────────────────────────────────
+// `'session'`-scoped links point at the live table view route instead of the
+// campaign-lore view; the link itself still always follows whatever session
+// is currently active for the campaign (resolved at request/connect time —
+// there is no sessionId stored on ShareLink, see docs/design/live-session.md).
 function publicShareLink(s: ShareLinkDoc) {
+  const path = s.scope === 'session' ? `/share/${s.token}/session` : `/share/${s.token}`;
   return {
     id: String(s._id),
     token: s.token,
-    url: `${env.clientOrigin}/share/${s.token}`,
+    scope: s.scope,
+    url: `${env.clientOrigin}${path}`,
     createdAt: s.createdAt,
   };
 }
 
+const createShareLinkSchema = z.object({
+  scope: z.enum(['campaign', 'session']).default('campaign'),
+});
+
 router.post(
   '/share',
   requireCampaignAccess('owner'),
+  validate(createShareLinkSchema),
   asyncHandler(async (req, res) => {
     const link = await ShareLink.create({
       campaignId: req.params.cid,
       token: crypto.randomBytes(24).toString('base64url'),
       createdBy: req.session.userId,
+      scope: req.body.scope,
     });
     res.status(201).json({ link: publicShareLink(link as ShareLinkDoc) });
   }),
@@ -202,10 +217,15 @@ router.delete(
       res.status(404).json({ error: 'Not found' });
       return;
     }
-    await ShareLink.findOneAndUpdate(
+    // Fetch before updating so we still have the token to look up live sockets.
+    const link = await ShareLink.findOneAndUpdate(
       { _id: req.params.linkId, campaignId: req.params.cid },
       { $set: { revoked: true } },
     );
+    // Revocation must cut any live /share sockets already connected under this
+    // token, not just block future joins (docs/design/live-session.md, Security
+    // considerations).
+    if (link) disconnectShareToken((link as ShareLinkDoc).token);
     res.json({ ok: true });
   }),
 );

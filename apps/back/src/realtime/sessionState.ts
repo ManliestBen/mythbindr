@@ -12,6 +12,12 @@ const SAVE_DEBOUNCE_MS = 2000;
 export interface SessionRoomMeta {
   sourceEncounterId: string | null;
   startedAt: string | Date;
+  /** Needed so the op path (`applySessionOp`/`broadcastRoomState`) can address
+   *  the read-only `share:<campaignId>` room without a per-broadcast DB query —
+   *  see docs/design/live-session.md ("Player view & share scope"). Empty
+   *  string until hydration resolves (mirrors the empty-state placeholder
+   *  below); no broadcast reaches a real client on that empty room. */
+  campaignId: string;
 }
 
 /** One live in-memory game session, directly modeled on `yElement.ts`'s `Room`. */
@@ -47,7 +53,7 @@ export async function joinSessionRoom(
   if (!room) {
     const r: SessionRoom = {
       state: emptyState(sessionId),
-      meta: { sourceEncounterId: null, startedAt: new Date() },
+      meta: { sourceEncounterId: null, startedAt: new Date(), campaignId: '' },
       seq: 0,
       dirty: false,
       saveTimer: null,
@@ -76,7 +82,11 @@ export async function joinSessionRoom(
             })),
             status: pub.status,
           };
-          r.meta = { sourceEncounterId: pub.sourceEncounterId, startedAt: pub.startedAt };
+          r.meta = {
+            sourceEncounterId: pub.sourceEncounterId,
+            startedAt: pub.startedAt,
+            campaignId: String(doc.campaignId),
+          };
         }
       } catch (err) {
         console.error('session room hydrate error:', err);

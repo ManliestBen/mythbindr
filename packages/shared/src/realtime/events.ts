@@ -122,3 +122,57 @@ export interface ServerToClientEvents {
    *  local change without guessing from a missing broadcast. */
   'session:opError': (p: SessionRef & { message: string }) => void;
 }
+
+// ── Player share view (read-only `/share` namespace) ────────────────────────
+// Deliberately SEPARATE from ClientToServerEvents/ServerToClientEvents above:
+// the `/share` namespace has no mutation events at all (structurally — it
+// registers no handlers for them), so merging these into the main contract
+// would make session:applyDamage-shaped events compile-visible on an
+// unauthenticated namespace. See docs/design/live-session.md, "Security
+// considerations".
+
+/** A single condition on a shared combatant (mirrors Combatant.conditions). */
+export interface SharedCondition {
+  name: string;
+  rounds: number | null;
+}
+
+/** Player-facing combatant shape — monster HP is hidden ENTIRELY (operator
+ *  decision 2026-07-14): only `isPlayer: true` combatants carry HP fields. */
+export interface SharedCombatant {
+  cid: string;
+  name: string;
+  initiative: number;
+  isPlayer: boolean;
+  conditions: SharedCondition[];
+  currentHp?: number;
+  maxHp?: number;
+  tempHp?: number;
+}
+
+/** Player-facing log entry — `kind: 'note'` entries are filtered server-side;
+ *  GM scratch notes never reach this namespace. */
+export interface SharedLogEntry {
+  at?: string | Date;
+  kind: 'roll' | 'event';
+  text: string;
+  by?: string;
+}
+
+/** The `sharedSession()` whitelist (apps/back/src/share/serialize.ts), typed.
+ *  No `deathSaves`, `notes`, or `sourceElementId` — ever. */
+export interface SharedSessionView {
+  round: number;
+  turnIndex: number;
+  status: 'active' | 'ended';
+  combatants: SharedCombatant[];
+  log: SharedLogEntry[];
+}
+
+/** `/share` namespace: read-only. There are NO client→server events besides
+ *  the built-in connection handshake — the namespace registers zero mutation
+ *  handlers, enforced structurally rather than by a permission check. */
+export interface ShareServerToClientEvents {
+  'session:state': (p: { seq: number; session: SharedSessionView }) => void;
+  'session:none': () => void; // no active session for this campaign right now
+}

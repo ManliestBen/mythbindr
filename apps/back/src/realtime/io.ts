@@ -33,6 +33,7 @@ import {
   joinSessionRoom,
   leaveSessionRoom,
 } from './sessionState';
+import { initShareNamespace } from './shareNamespace';
 
 type IOServer = Server<ClientToServerEvents, ServerToClientEvents>;
 
@@ -212,6 +213,11 @@ export function initRealtime(server: HttpServer): IOServer {
       if (room) await emitPresence(room);
     });
   });
+
+  // Mount the unauthenticated, read-only `/share` namespace AFTER the main
+  // namespace's io.use/handlers above — a separate namespace with its own
+  // middleware, never a change to this one (docs/design/live-session.md).
+  initShareNamespace(io);
 
   return io;
 }

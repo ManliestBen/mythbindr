@@ -16,7 +16,9 @@ export function useShareCampaign(token: string) {
   return useQuery({
     queryKey: qk.share(token),
     queryFn: () =>
-      apiGet<{ campaign: { name: string }; valid: boolean }>(`/api/share/${token}`),
+      apiGet<{ campaign: { name: string }; valid: boolean; scope?: 'campaign' | 'session' }>(
+        `/api/share/${token}`,
+      ),
     enabled: !!token,
     retry: false,
   });
@@ -35,9 +37,12 @@ export function useShareElements(token: string) {
 }
 
 // ── Owner side (manage links) ────────────────────────────────────────────
+export type ShareScope = 'campaign' | 'session';
+
 export interface ShareLinkT {
   id: string;
   token: string;
+  scope: ShareScope;
   url: string;
   createdAt: string;
 }
@@ -54,8 +59,8 @@ export function useShareLinks(cid: string) {
 export function useCreateShareLink(cid: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      apiPost<{ link: ShareLinkT }>(`/api/campaigns/${cid}/share`).then((r) => r.link),
+    mutationFn: (scope: ShareScope = 'campaign') =>
+      apiPost<{ link: ShareLinkT }>(`/api/campaigns/${cid}/share`, { scope }).then((r) => r.link),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.shareLinks(cid) }),
   });
 }

@@ -151,23 +151,40 @@ export default function Members() {
         <section className="mt-8">
           <h2 className="font-heading text-lg font-bold">Share with players</h2>
           <p className="mt-1 text-sm text-fg-muted">
-            A public read-only link showing only elements marked “visible in the player share
-            view”. GM secrets are never included.
+            A public, unauthenticated link — no account needed. “Campaign lore” shows only
+            elements marked “visible in the player share view”. “Live table view” shows a
+            phones-friendly initiative tracker for whichever session is currently running —
+            monster HP is never shown, GM notes never leak. GM secrets are never included
+            either way.
           </p>
-          <button
-            onClick={() => createShareLink.mutate()}
-            disabled={createShareLink.isPending}
-            className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-app-bg hover:bg-brand-bright disabled:opacity-50"
-          >
-            Create share link
-          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => createShareLink.mutate('campaign')}
+              disabled={createShareLink.isPending}
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-app-bg hover:bg-brand-bright disabled:opacity-50"
+            >
+              Create campaign lore link
+            </button>
+            <button
+              onClick={() => createShareLink.mutate('session')}
+              disabled={createShareLink.isPending}
+              className="rounded-lg border border-app-border px-4 py-2 text-sm text-fg hover:border-fg-muted disabled:opacity-50"
+            >
+              Create live table view link
+            </button>
+          </div>
           <div className="mt-4 space-y-2">
             {shareLinks.data?.map((l) => (
               <div
                 key={l.id}
                 className="flex items-center justify-between gap-2 rounded-xl border border-app-border bg-app-surface p-3"
               >
-                <div className="truncate text-xs text-fg-muted">{l.url}</div>
+                <div className="min-w-0">
+                  <span className="text-[10px] uppercase tracking-wide text-fg-muted">
+                    {l.scope === 'session' ? 'Live table view' : 'Campaign lore'}
+                  </span>
+                  <div className="truncate text-xs text-fg-muted">{l.url}</div>
+                </div>
                 <div className="flex shrink-0 gap-2">
                   <button
                     onClick={() => copy(l.url, l.id)}

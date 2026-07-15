@@ -19,6 +19,7 @@ const AcceptInvite = lazy(() => import('./pages/AcceptInvite'));
 const RunSession = lazy(() => import('./pages/RunSession'));
 const Reference = lazy(() => import('./pages/Reference'));
 const SharePage = lazy(() => import('./pages/SharePage'));
+const ShareSessionView = lazy(() => import('./pages/ShareSessionView'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Placeholder = lazy(() => import('./pages/Placeholder'));
 
@@ -55,8 +56,9 @@ export default function App() {
           <BrowserRouter>
             <Suspense fallback={<Splash />}>
               <Routes>
-                {/* Public player share view — no auth. */}
+                {/* Public player share views — no auth. */}
                 <Route path="/share/:token" element={<SharePage />} />
+                <Route path="/share/:token/session" element={<ShareSessionView />} />
 
                 {/* Authenticated app. */}
                 <Route element={<RequireAuth />}>
