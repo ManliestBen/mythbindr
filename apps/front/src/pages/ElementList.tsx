@@ -31,9 +31,12 @@ export default function ElementList() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{cfg.plural}</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{cfg.plural}</h1>
+          {cfg.blurb && <p className="mt-1 max-w-prose text-sm text-fg-muted">{cfg.blurb}</p>}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={() => setShowTrash((v) => !v)}
             className={[
@@ -64,9 +67,24 @@ export default function ElementList() {
 
         {elements && elements.length === 0 && (
           <div className="rounded-xl border border-dashed border-app-border p-10 text-center">
-            <p className="text-sm text-fg-muted">
-              {showTrash ? `No ${cfg.plural.toLowerCase()} in trash.` : `No ${cfg.plural.toLowerCase()} yet.`}
-            </p>
+            {showTrash ? (
+              <p className="text-sm text-fg-muted">No {cfg.plural.toLowerCase()} in trash.</p>
+            ) : (
+              <>
+                <p className="font-heading text-lg font-bold">
+                  No {cfg.plural.toLowerCase()} yet
+                </p>
+                {cfg.blurb && (
+                  <p className="mx-auto mt-2 max-w-md text-sm text-fg-muted">{cfg.blurb}</p>
+                )}
+                <Link
+                  to={`/campaigns/${cid}/${seg}/new`}
+                  className="mt-4 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-app-bg hover:bg-brand-bright"
+                >
+                  Create your first {cfg.label.toLowerCase()}
+                </Link>
+              </>
+            )}
           </div>
         )}
 

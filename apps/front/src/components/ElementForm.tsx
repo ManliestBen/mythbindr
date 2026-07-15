@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import RichTextEditor from './RichTextEditor';
 import CollaborativeEditor from './CollaborativeEditor';
+import HelpTip from './HelpTip';
 import { useElements } from '../data/elements';
 import type { DataField } from '../data/elementTypes';
 
@@ -104,7 +105,12 @@ export default function ElementForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {dataFields.map((f) => (
             <div key={f.key} className={f.kind === 'textarea' ? 'sm:col-span-2' : ''}>
-              <label className={labelCls}>{f.label}</label>
+              <label className={labelCls}>
+                <span className="inline-flex items-center gap-1.5">
+                  {f.label}
+                  {f.help && <HelpTip text={f.help} />}
+                </span>
+              </label>
               {f.kind === 'select' ? (
                 <select className={inputCls} {...register(`data.${f.key}`)}>
                   {(f.options ?? []).map((o) => (

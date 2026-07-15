@@ -8,8 +8,10 @@ import {
   type CampaignFormValues,
 } from '../data/campaigns';
 import CampaignForm from '../components/CampaignForm';
+import GettingStarted from '../components/GettingStarted';
 import { useDashboard } from '../data/dashboard';
 import { useActivity } from '../data/activity';
+import { useSession } from '../data/session';
 import {
   ELEMENT_SEGMENTS_ORDERED,
   ELEMENT_TYPE_BY_SEGMENT,
@@ -29,6 +31,7 @@ export default function CampaignHome() {
   const duplicate = useDuplicateCampaign();
   const dash = useDashboard(cid ?? '');
   const activity = useActivity(cid ?? '');
+  const liveSession = useSession(cid ?? '');
   const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
 
@@ -128,6 +131,56 @@ export default function CampaignHome() {
           </button>
         </div>
       </div>
+
+      {dash.data && (
+        <GettingStarted
+          campaignId={campaign.id}
+          steps={[
+            {
+              key: 'stage',
+              label: 'Set the stage',
+              detail: 'Give the campaign a hook or a "story so far" so everyone knows the pitch.',
+              done: Boolean(campaign.hook || campaign.storySoFar),
+              onClick: () => setEditing(true),
+            },
+            {
+              key: 'npc',
+              label: 'Create your first NPC',
+              detail: 'One memorable person with a want and a quirk beats ten stat blocks.',
+              done: (dash.data.counts.npc ?? 0) > 0,
+              to: `/campaigns/${campaign.id}/npcs/new`,
+            },
+            {
+              key: 'location',
+              label: 'Add a location',
+              detail: 'Where does session one open? A tavern is a classic for a reason.',
+              done: (dash.data.counts.location ?? 0) > 0,
+              to: `/campaigns/${campaign.id}/locations/new`,
+            },
+            {
+              key: 'quest',
+              label: 'Write a quest',
+              detail: 'The thing the party is trying to do. One clear objective is plenty.',
+              done: (dash.data.counts.quest ?? 0) > 0,
+              to: `/campaigns/${campaign.id}/quests/new`,
+            },
+            {
+              key: 'encounter',
+              label: 'Plan an encounter',
+              detail: 'A fight, a negotiation, or a puzzle — something to make the night exciting.',
+              done: (dash.data.counts.encounter ?? 0) > 0,
+              to: `/campaigns/${campaign.id}/encounters/new`,
+            },
+            {
+              key: 'session',
+              label: 'Run your first session',
+              detail: 'Initiative, HP, dice, and notes in one screen when game night arrives.',
+              done: Boolean(liveSession.data),
+              to: `/campaigns/${campaign.id}/session`,
+            },
+          ]}
+        />
+      )}
 
       {/* Element-type hub with live counts (dashboard aggregation). */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -104,10 +104,35 @@ export default function Campaigns() {
           </p>
         )}
 
-        {campaigns && campaigns.length === 0 && !creating && (
-          <div className="rounded-xl border border-dashed border-app-border p-10 text-center">
-            <p className="text-sm text-fg-muted">
-              No campaigns yet. Create your first one to start building.
+        {campaigns && campaigns.length === 0 && !creating && !aiOpen && (
+          <div className="rounded-xl border border-dashed border-app-border px-8 py-14 text-center">
+            <h2 className="font-heading text-2xl font-bold">
+              Welcome to Myth<span className="text-brand">Bindr</span>
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-sm text-fg-muted">
+              Build your world one piece at a time — NPCs, locations, quests, encounters —
+              then run it live at the table with initiative, dice, and notes. You don&rsquo;t
+              need a finished world to start: a name and a spark are enough.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button
+                onClick={() => setCreating(true)}
+                className="rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-app-bg hover:bg-brand-bright"
+              >
+                Create your first campaign
+              </button>
+              {user?.isAdmin && (
+                <button
+                  onClick={() => setAiOpen(true)}
+                  className="rounded-lg border border-app-border px-5 py-2.5 text-sm text-fg hover:border-fg-muted"
+                >
+                  ✨ Or let AI draft one from a premise
+                </button>
+              )}
+            </div>
+            <p className="mt-5 text-xs text-fg-muted">
+              New to being a Game Master? Each screen explains itself as you go — look for
+              the little “?” marks.
             </p>
           </div>
         )}
