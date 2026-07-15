@@ -13,6 +13,8 @@ import AddCombatant from '../components/session/AddCombatant';
 import DiceRoller from '../components/session/DiceRoller';
 import RollLog from '../components/session/RollLog';
 import SpotifyPlayer from '../components/session/SpotifyPlayer';
+import QuickReference from '../components/session/QuickReference';
+import PartyGlance from '../components/session/PartyGlance';
 import { useAuth } from '../auth/AuthProvider';
 
 function sortByInit(cs: Combatant[]): Combatant[] {
@@ -32,6 +34,7 @@ export default function RunSession() {
   const end = useEndSession(cid ?? '');
 
   const [session, setSession] = useState<GameSessionT | null>(null);
+  const [refOpen, setRefOpen] = useState(false);
   useEffect(() => {
     if (loaded) setSession(loaded);
     // re-init only when the active session identity changes
@@ -193,6 +196,18 @@ export default function RunSession() {
         <div className="flex items-center gap-2">
           <SaveStatus pending={update.isPending} error={update.isError} />
           <button
+            onClick={() => setRefOpen((v) => !v)}
+            title="Rules quick reference: conditions, combat actions, and an instant NPC"
+            className={[
+              'rounded-lg border px-3 py-2 text-sm font-semibold',
+              refOpen
+                ? 'border-brand text-brand'
+                : 'border-app-border text-fg hover:border-brand hover:text-brand',
+            ].join(' ')}
+          >
+            📖 Reference
+          </button>
+          <button
             onClick={prevTurn}
             disabled={atStart}
             title={atStart ? 'Already at the start of round 1' : 'Previous turn'}
@@ -217,6 +232,11 @@ export default function RunSession() {
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="space-y-2 lg:col-span-2">
+          <PartyGlance
+            campaignId={cid ?? ''}
+            combatants={session.combatants}
+            onAdd={addCombatant}
+          />
           {order.map((c) => (
             <CombatantCard
               key={c.cid}
@@ -238,6 +258,13 @@ export default function RunSession() {
           <RollLog log={session.log} onNote={(t) => addLog('note', t)} />
         </div>
       </div>
+
+      <QuickReference
+        campaignId={cid ?? ''}
+        open={refOpen}
+        onClose={() => setRefOpen(false)}
+        onLog={(t) => addLog('note', t)}
+      />
     </div>
   );
 }
