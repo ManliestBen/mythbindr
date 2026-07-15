@@ -22,12 +22,14 @@ export interface SearchResult {
   name: string;
 }
 
-export function useSearch(cid: string, q: string) {
+export function useSearch(cid: string, q: string, type?: string) {
   return useQuery({
-    queryKey: qk.search(cid, q),
+    queryKey: [...qk.search(cid, q), type ?? ''],
     queryFn: () =>
       apiGet<{ results: SearchResult[] }>(
-        `/api/campaigns/${cid}/search?q=${encodeURIComponent(q)}`,
+        `/api/campaigns/${cid}/search?q=${encodeURIComponent(q)}${
+          type ? `&type=${encodeURIComponent(type)}` : ''
+        }`,
       ).then((r) => r.results),
     enabled: !!cid && q.trim().length > 0,
   });

@@ -428,9 +428,17 @@ export default function CampaignHome() {
 
       {activity.data && activity.data.length > 0 && (
         <div className="mt-8">
-          <h3 className="text-sm font-bold">Activity</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold">Activity</h3>
+            <Link
+              to={`/campaigns/${campaign.id}/activity`}
+              className="text-xs text-fg-muted hover:text-brand"
+            >
+              View all →
+            </Link>
+          </div>
           <ul className="mt-2 space-y-1">
-            {activity.data.map((a) => {
+            {activity.data.slice(0, 8).map((a) => {
               const seg = a.elementType ? segmentForType(a.elementType) : undefined;
               return (
                 <li key={a.id} className="flex flex-wrap items-center gap-1.5 text-sm text-fg-muted">

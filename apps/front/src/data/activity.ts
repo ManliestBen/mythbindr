@@ -12,13 +12,13 @@ export interface ActivityItem {
   at: string;
 }
 
-export function useActivity(cid: string) {
+export function useActivity(cid: string, limit = 30) {
   return useQuery({
-    queryKey: qk.activity(cid),
+    queryKey: [...qk.activity(cid), limit],
     queryFn: () =>
-      apiGet<{ activity: ActivityItem[] }>(`/api/campaigns/${cid}/activity`).then(
-        (r) => r.activity,
-      ),
+      apiGet<{ activity: ActivityItem[] }>(
+        `/api/campaigns/${cid}/activity?limit=${limit}`,
+      ).then((r) => r.activity),
     enabled: !!cid,
   });
 }

@@ -140,10 +140,11 @@ router.get(
   '/activity',
   requireCampaignAccess('viewer'),
   asyncHandler(async (req, res) => {
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '30'), 10) || 30, 1), 200);
     const items = await Activity.find({ campaignId: req.params.cid })
       .populate<{ userId: { displayName: string } }>('userId', 'displayName')
       .sort({ createdAt: -1 })
-      .limit(30);
+      .limit(limit);
     res.json({
       activity: items.map((a) => ({
         id: String(a._id),
