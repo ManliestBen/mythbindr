@@ -8,6 +8,7 @@ import { validate } from '../lib/validate';
 import { ELEMENT_TYPES, campaignCreateSchema, campaignUpdateSchema } from '@mythbindr/shared';
 import { requireCampaignAccess } from './access';
 import { exportJson, exportMarkdown } from '../share/exportCampaign';
+import { remapImportedElements } from '../share/importRemap';
 import type { ElementDoc } from '../models/Element';
 
 const router = Router();
@@ -189,51 +190,12 @@ router.post(
         typeof e.name === 'string' &&
         (ELEMENT_TYPES as readonly string[]).includes(e.type as string),
     );
-    // Pre-assign new ids so cross-element links and @mentions can be remapped.
-    const idMap = new Map<string, mongoose.Types.ObjectId>();
-    for (const e of srcElements) {
-      if (typeof e.id === 'string') idMap.set(e.id, new mongoose.Types.ObjectId());
-    }
-    const remapIds = (node: unknown): unknown => {
-      if (Array.isArray(node)) return node.map(remapIds);
-      if (node && typeof node === 'object') {
-        const out: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
-          out[k] =
-            typeof v === 'string' && idMap.has(v) ? String(idMap.get(v)) : remapIds(v);
-        }
-        return out;
-      }
-      return node;
-    };
-
-    const { deriveBodyText } = await import('../elements/bodyText');
-    const docs = srcElements.map((e) => {
-      const body = remapIds(e.body);
-      const links = Array.isArray(e.links)
-        ? (e.links as { targetId?: string; relType?: string; source?: string }[])
-            .filter((l) => l.targetId && idMap.has(l.targetId))
-            .map((l) => ({
-              targetId: idMap.get(l.targetId as string),
-              relType: String(l.relType ?? ''),
-              source: l.source === 'mention' ? 'mention' : 'relationship',
-            }))
-        : [];
-      return {
-        _id: typeof e.id === 'string' ? idMap.get(e.id) : new mongoose.Types.ObjectId(),
-        campaignId: campaign._id,
-        type: e.type,
-        name: String(e.name).slice(0, 200),
-        body,
-        bodyText: deriveBodyText(body),
-        tags: Array.isArray(e.tags) ? e.tags : [],
-        links,
-        data: e.data && typeof e.data === 'object' ? e.data : {},
-        playerVisible: Boolean(e.playerVisible),
-        secrets: String(e.secrets ?? ''),
-        updatedBy: req.session.userId,
-      };
-    });
+    const { docs: remappedDocs } = remapImportedElements(srcElements);
+    const docs = remappedDocs.map((doc) => ({
+      ...doc,
+      campaignId: campaign._id,
+      updatedBy: req.session.userId,
+    }));
     if (docs.length) await Element.insertMany(docs);
 
     res.status(201).json({
