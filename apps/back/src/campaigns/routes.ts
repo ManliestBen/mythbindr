@@ -21,10 +21,12 @@ router.get(
   asyncHandler(async (req, res) => {
     const memberships = await Membership.find({ userId: req.session.userId });
     const ids = memberships.map((m) => m.campaignId);
-    const campaigns = await Campaign.find({ _id: { $in: ids }, deletedAt: null }).sort({
-      updatedAt: -1,
-    });
-    res.json({ campaigns: campaigns.map((c) => publicCampaign(c as CampaignDoc)) });
+    const campaigns = await Campaign.find({ _id: { $in: ids }, deletedAt: null })
+      .sort({
+        updatedAt: -1,
+      })
+      .lean();
+    res.json({ campaigns: campaigns.map((c) => publicCampaign(c as unknown as CampaignDoc)) });
   }),
 );
 
@@ -252,7 +254,9 @@ router.get(
     const elements = (await Element.find({
       campaignId: req.params.cid,
       deletedAt: null,
-    }).sort({ type: 1, name: 1 })) as unknown as ElementDoc[];
+    })
+      .sort({ type: 1, name: 1 })
+      .lean()) as unknown as ElementDoc[];
 
     const slug = campaign.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'campaign';
     const stamp = new Date().toISOString().slice(0, 10);
@@ -285,7 +289,7 @@ router.get(
       q ? { score: { $meta: 'textScore' } } : undefined,
     ).limit(50);
     query.sort(q ? { score: { $meta: 'textScore' } } : { updatedAt: -1 });
-    const els = await query;
+    const els = await query.lean();
 
     res.json({
       results: els.map((e) => ({ id: String(e._id), type: e.type, name: e.name })),

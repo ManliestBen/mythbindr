@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './theme/ThemeProvider';
@@ -6,20 +7,20 @@ import { ActiveCampaignProvider } from './campaign/ActiveCampaignProvider';
 import AuthThemeSync from './components/AuthThemeSync';
 import AuthScreen from './auth/AuthScreen';
 import AppShell from './components/AppShell';
-import Campaigns from './pages/Campaigns';
-import CampaignHome from './pages/CampaignHome';
-import ElementList from './pages/ElementList';
-import ElementEditor from './pages/ElementEditor';
-import SearchResults from './pages/SearchResults';
-import CampaignMap from './pages/CampaignMap';
-import Activity from './pages/Activity';
-import Members from './pages/Members';
-import AcceptInvite from './pages/AcceptInvite';
-import RunSession from './pages/RunSession';
-import Reference from './pages/Reference';
-import SharePage from './pages/SharePage';
-import Settings from './pages/Settings';
-import Placeholder from './pages/Placeholder';
+const Campaigns = lazy(() => import('./pages/Campaigns'));
+const CampaignHome = lazy(() => import('./pages/CampaignHome'));
+const ElementList = lazy(() => import('./pages/ElementList'));
+const ElementEditor = lazy(() => import('./pages/ElementEditor'));
+const SearchResults = lazy(() => import('./pages/SearchResults'));
+const CampaignMap = lazy(() => import('./pages/CampaignMap'));
+const Activity = lazy(() => import('./pages/Activity'));
+const Members = lazy(() => import('./pages/Members'));
+const AcceptInvite = lazy(() => import('./pages/AcceptInvite'));
+const RunSession = lazy(() => import('./pages/RunSession'));
+const Reference = lazy(() => import('./pages/Reference'));
+const SharePage = lazy(() => import('./pages/SharePage'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Placeholder = lazy(() => import('./pages/Placeholder'));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
@@ -52,29 +53,31 @@ export default function App() {
         <AuthProvider>
           <AuthThemeSync />
           <BrowserRouter>
-            <Routes>
-              {/* Public player share view — no auth. */}
-              <Route path="/share/:token" element={<SharePage />} />
+            <Suspense fallback={<Splash />}>
+              <Routes>
+                {/* Public player share view — no auth. */}
+                <Route path="/share/:token" element={<SharePage />} />
 
-              {/* Authenticated app. */}
-              <Route element={<RequireAuth />}>
-                <Route index element={<Navigate to="/campaigns" replace />} />
-                <Route path="campaigns" element={<Campaigns />} />
-                <Route path="campaigns/:cid" element={<CampaignHome />} />
-                <Route path="campaigns/:cid/members" element={<Members />} />
-                <Route path="campaigns/:cid/session" element={<RunSession />} />
-                <Route path="campaigns/:cid/search" element={<SearchResults />} />
-                <Route path="campaigns/:cid/map" element={<CampaignMap />} />
-                <Route path="campaigns/:cid/activity" element={<Activity />} />
-                <Route path="invite/:token" element={<AcceptInvite />} />
-                <Route path="campaigns/:cid/:type" element={<ElementList />} />
-                <Route path="campaigns/:cid/:type/:elementId" element={<ElementEditor />} />
-                <Route path="reference" element={<Reference />} />
-                <Route path="reference/:category" element={<Reference />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="*" element={<Placeholder />} />
-              </Route>
-            </Routes>
+                {/* Authenticated app. */}
+                <Route element={<RequireAuth />}>
+                  <Route index element={<Navigate to="/campaigns" replace />} />
+                  <Route path="campaigns" element={<Campaigns />} />
+                  <Route path="campaigns/:cid" element={<CampaignHome />} />
+                  <Route path="campaigns/:cid/members" element={<Members />} />
+                  <Route path="campaigns/:cid/session" element={<RunSession />} />
+                  <Route path="campaigns/:cid/search" element={<SearchResults />} />
+                  <Route path="campaigns/:cid/map" element={<CampaignMap />} />
+                  <Route path="campaigns/:cid/activity" element={<Activity />} />
+                  <Route path="invite/:token" element={<AcceptInvite />} />
+                  <Route path="campaigns/:cid/:type" element={<ElementList />} />
+                  <Route path="campaigns/:cid/:type/:elementId" element={<ElementEditor />} />
+                  <Route path="reference" element={<Reference />} />
+                  <Route path="reference/:category" element={<Reference />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="*" element={<Placeholder />} />
+                </Route>
+              </Routes>
+            </Suspense>
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
