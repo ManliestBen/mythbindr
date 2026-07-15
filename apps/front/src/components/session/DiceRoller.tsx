@@ -6,10 +6,38 @@ function rollDie(sides: number): number {
   return Math.floor(Math.random() * sides) + 1;
 }
 
+/** Parse "8d6+3", "d20-1", "3d8" (whitespace/case tolerant). */
+function parseFormula(raw: string): { count: number; sides: number; mod: number } | null {
+  const m = raw.replace(/\s+/g, '').toLowerCase().match(/^(\d*)d(\d+)([+-]\d+)?$/);
+  if (!m) return null;
+  const count = Math.min(Math.max(parseInt(m[1] || '1', 10), 1), 100);
+  const sides = parseInt(m[2], 10);
+  if (sides < 2 || sides > 1000) return null;
+  return { count, sides, mod: m[3] ? parseInt(m[3], 10) : 0 };
+}
+
 export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void }) {
   const [mod, setMod] = useState('');
   const [count, setCount] = useState('1');
   const [adv, setAdv] = useState<'none' | 'adv' | 'dis'>('none');
+  const [formula, setFormula] = useState('');
+  const [formulaError, setFormulaError] = useState(false);
+
+  const rollFormula = () => {
+    const parsed = parseFormula(formula);
+    if (!parsed) {
+      setFormulaError(formula.trim().length > 0);
+      return;
+    }
+    setFormulaError(false);
+    const rolls = Array.from({ length: parsed.count }, () => rollDie(parsed.sides));
+    const sum = rolls.reduce((x, y) => x + y, 0) + parsed.mod;
+    const modStr = parsed.mod ? `${parsed.mod > 0 ? '+' : ''}${parsed.mod}` : '';
+    onRoll(
+      `${parsed.count}d${parsed.sides}${modStr} [${rolls.join(', ')}] = ${sum}`,
+    );
+    setFormula('');
+  };
 
   const roll = (sides: number) => {
     const m = parseInt(mod, 10) || 0;
@@ -81,6 +109,33 @@ export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void 
           <span className="self-center text-[10px] text-fg-muted">(d20)</span>
         </div>
       </div>
+      <div className="mt-2 flex items-center gap-2">
+        <input
+          value={formula}
+          onChange={(e) => {
+            setFormula(e.target.value);
+            setFormulaError(false);
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && rollFormula()}
+          placeholder="Formula, e.g. 8d6+3"
+          className={[
+            'flex-1 rounded-lg border bg-app-bg px-2 py-1 text-sm outline-none focus:border-brand',
+            formulaError ? 'border-red-500/60' : 'border-app-border',
+          ].join(' ')}
+          aria-label="Dice formula"
+        />
+        <button
+          onClick={rollFormula}
+          className="rounded-lg border border-app-border px-2.5 py-1 text-sm font-semibold hover:border-brand hover:text-brand"
+        >
+          Roll
+        </button>
+      </div>
+      {formulaError && (
+        <p className="mt-1 text-[11px] text-red-400">
+          Use NdS±M — like 8d6+3, d20-1, or 2d10.
+        </p>
+      )}
     </div>
   );
 }

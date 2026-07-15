@@ -35,6 +35,38 @@ export default function RunSession() {
 
   const [session, setSession] = useState<GameSessionT | null>(null);
   const [refOpen, setRefOpen] = useState(false);
+
+  // Table hotkeys — routed through refs because the turn handlers close over
+  // the current session state further down.
+  const nextTurnRef = useRef<() => void>(() => {});
+  const prevTurnRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        t instanceof HTMLSelectElement ||
+        t?.isContentEditable
+      ) {
+        return;
+      }
+      const k = e.key.toLowerCase();
+      if (k === 'n' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        nextTurnRef.current();
+      } else if (k === 'p' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevTurnRef.current();
+      } else if (k === 'r') {
+        e.preventDefault();
+        setRefOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   useEffect(() => {
     if (loaded) setSession(loaded);
     // re-init only when the active session identity changes
@@ -174,6 +206,9 @@ export default function RunSession() {
       return { ...s, turnIndex: ord.length - 1, round: Math.max(1, s.round - 1) };
     });
 
+  nextTurnRef.current = nextTurn;
+  prevTurnRef.current = prevTurn;
+
   const atStart = session.turnIndex <= 0 && session.round <= 1;
 
   const endSession = () => {
@@ -192,6 +227,11 @@ export default function RunSession() {
         <div>
           <p className="text-[11px] uppercase tracking-[0.15em] text-fg-muted">Run Session</p>
           <h1 className="text-2xl font-bold">Round {session.round}</h1>
+          <p className="mt-0.5 hidden text-[10px] text-fg-muted lg:block">
+            Hotkeys: <kbd className="rounded border border-app-border px-1">N</kbd> next ·{' '}
+            <kbd className="rounded border border-app-border px-1">P</kbd> previous ·{' '}
+            <kbd className="rounded border border-app-border px-1">R</kbd> reference
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <SaveStatus pending={update.isPending} error={update.isError} />
