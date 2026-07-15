@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPost } from '../lib/api';
+import { qk } from '../lib/queryKeys';
 
 // ── Public (player) side ─────────────────────────────────────────────────
 export interface ShareElement {
@@ -13,7 +14,7 @@ export interface ShareElement {
 
 export function useShareCampaign(token: string) {
   return useQuery({
-    queryKey: ['share', token],
+    queryKey: qk.share(token),
     queryFn: () =>
       apiGet<{ campaign: { name: string }; valid: boolean }>(`/api/share/${token}`),
     enabled: !!token,
@@ -23,7 +24,7 @@ export function useShareCampaign(token: string) {
 
 export function useShareElements(token: string) {
   return useQuery({
-    queryKey: ['share', token, 'elements'],
+    queryKey: qk.shareElements(token),
     queryFn: () =>
       apiGet<{ elements: ShareElement[] }>(`/api/share/${token}/elements`).then(
         (r) => r.elements,
@@ -43,7 +44,7 @@ export interface ShareLinkT {
 
 export function useShareLinks(cid: string) {
   return useQuery({
-    queryKey: ['campaign', cid, 'sharelinks'],
+    queryKey: qk.shareLinks(cid),
     queryFn: () =>
       apiGet<{ links: ShareLinkT[] }>(`/api/campaigns/${cid}/share`).then((r) => r.links),
     enabled: !!cid,
@@ -55,7 +56,7 @@ export function useCreateShareLink(cid: string) {
   return useMutation({
     mutationFn: () =>
       apiPost<{ link: ShareLinkT }>(`/api/campaigns/${cid}/share`).then((r) => r.link),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', cid, 'sharelinks'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.shareLinks(cid) }),
   });
 }
 
@@ -63,6 +64,6 @@ export function useRevokeShareLink(cid: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => apiDelete(`/api/campaigns/${cid}/share/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign', cid, 'sharelinks'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.shareLinks(cid) }),
   });
 }

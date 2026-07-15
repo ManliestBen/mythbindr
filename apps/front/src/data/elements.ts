@@ -44,7 +44,8 @@ export interface ElementInput {
 
 /** Invalidate every elements list + the dashboard counts for a campaign. */
 function invalidateElements(qc: QueryClient, cid: string) {
-  qc.invalidateQueries({ queryKey: ['campaign', cid, 'elements'] });
+  // prefix-invalidates every qk.elements(cid, filters) variant
+  qc.invalidateQueries({ queryKey: qk.elementsPrefix(cid) });
   qc.invalidateQueries({ queryKey: qk.dashboard(cid) });
 }
 

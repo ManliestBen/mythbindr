@@ -13,4 +13,17 @@ export const qk = {
   invites: (cid: string) => ['campaign', cid, 'invites'] as const,
   activity: (cid: string) => ['campaign', cid, 'activity'] as const,
   invitePreview: (token: string) => ['invite', token] as const,
+  session: (cid: string) => ['campaign', cid, 'session'] as const,
+  sessionHistory: (cid: string) => ['campaign', cid, 'sessions', 'history'] as const,
+  // prefix-invalidates every qk.elements(cid, filters) variant
+  elementsPrefix: (cid: string) => ['campaign', cid, 'elements'] as const,
+  shareLinks: (cid: string) => ['campaign', cid, 'sharelinks'] as const,
+  share: (token: string) => ['share', token] as const,
+  shareElements: (token: string) => ['share', token, 'elements'] as const,
+  srdCategories: () => ['srd', 'categories'] as const,
+  srdList: (category: string, filters: Record<string, string>) =>
+    ['srd', category, filters] as const,
+  srdResource: (category: string, slug: string | null) =>
+    ['srd', category, 'item', slug] as const,
+  spotifyPlaylists: () => ['spotify', 'playlists'] as const,
 };

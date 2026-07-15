@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../lib/api';
+import { qk } from '../lib/queryKeys';
 
 export interface SrdListItem {
   category: string;
@@ -33,7 +34,7 @@ export interface SrdResource {
 
 export function useSrdCategories() {
   return useQuery({
-    queryKey: ['srd', 'categories'],
+    queryKey: qk.srdCategories(),
     queryFn: () =>
       apiGet<{ categories: SrdCategoryCount[] }>('/api/srd').then((r) => r.categories),
   });
@@ -43,7 +44,7 @@ export function useSrdList(category: string, filters: Record<string, string>) {
   const params = new URLSearchParams(Object.entries(filters).filter(([, v]) => v));
   const qs = params.toString();
   return useQuery({
-    queryKey: ['srd', category, filters],
+    queryKey: qk.srdList(category, filters),
     queryFn: () =>
       apiGet<{ count: number; results: SrdListItem[] }>(
         `/api/srd/${category}${qs ? `?${qs}` : ''}`,
@@ -54,7 +55,7 @@ export function useSrdList(category: string, filters: Record<string, string>) {
 
 export function useSrdResource(category: string, slug: string | null) {
   return useQuery({
-    queryKey: ['srd', category, 'item', slug],
+    queryKey: qk.srdResource(category, slug),
     queryFn: () =>
       apiGet<{ resource: SrdResource }>(`/api/srd/${category}/${slug}`).then((r) => r.resource),
     enabled: !!category && !!slug,
