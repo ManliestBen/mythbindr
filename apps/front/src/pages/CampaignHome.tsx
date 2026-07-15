@@ -126,6 +126,27 @@ export default function CampaignHome() {
           >
             Duplicate
           </button>
+          <details className="relative">
+            <summary className="cursor-pointer list-none rounded-lg border border-app-border px-3 py-1.5 text-sm text-fg-muted hover:text-fg [&::-webkit-details-marker]:hidden">
+              Export ▾
+            </summary>
+            <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-app-border bg-app-surface p-1 shadow-lg">
+              <a
+                href={`/api/campaigns/${campaign.id}/export?format=markdown`}
+                download
+                className="block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-app-surface2 hover:text-fg"
+              >
+                Prep packet (.md)
+              </a>
+              <a
+                href={`/api/campaigns/${campaign.id}/export`}
+                download
+                className="block rounded-md px-3 py-1.5 text-sm text-fg-muted hover:bg-app-surface2 hover:text-fg"
+              >
+                Full backup (.json)
+              </a>
+            </div>
+          </details>
           <button
             onClick={onDelete}
             disabled={del.isPending}

@@ -7,6 +7,8 @@ import { asyncHandler, requireAuth } from '../auth/middleware';
 import { validate } from '../lib/validate';
 import { campaignCreateSchema, campaignUpdateSchema } from '@mythbindr/shared';
 import { requireCampaignAccess } from './access';
+import { exportJson, exportMarkdown } from '../share/exportCampaign';
+import type { ElementDoc } from '../models/Element';
 
 const router = Router();
 
@@ -145,6 +147,32 @@ router.get(
       })),
       storySoFar: (req.campaign as CampaignDoc).storySoFar,
     });
+  }),
+);
+
+// ── Export: full-fidelity JSON or a readable Markdown prep packet ──────────
+router.get(
+  '/:cid/export',
+  requireCampaignAccess('viewer'),
+  asyncHandler(async (req, res) => {
+    const campaign = req.campaign as CampaignDoc;
+    const elements = (await Element.find({
+      campaignId: req.params.cid,
+      deletedAt: null,
+    }).sort({ type: 1, name: 1 })) as unknown as ElementDoc[];
+
+    const slug = campaign.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'campaign';
+    const stamp = new Date().toISOString().slice(0, 10);
+
+    if (req.query.format === 'markdown') {
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${slug}-${stamp}.md"`);
+      res.send(exportMarkdown(campaign, elements));
+      return;
+    }
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${slug}-${stamp}.json"`);
+    res.send(JSON.stringify(exportJson(campaign, elements), null, 2));
   }),
 );
 
