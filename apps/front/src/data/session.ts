@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPatch, apiPost } from '../lib/api';
+import { qk } from '../lib/queryKeys';
 
 export interface Condition {
   name: string;
@@ -39,11 +40,9 @@ export interface GameSessionT {
   endedAt: string | null;
 }
 
-const key = (cid: string) => ['campaign', cid, 'session'];
-
 export function useSession(cid: string) {
   return useQuery({
-    queryKey: key(cid),
+    queryKey: qk.session(cid),
     queryFn: () =>
       apiGet<{ session: GameSessionT | null }>(`/api/campaigns/${cid}/session`).then(
         (r) => r.session,
@@ -55,7 +54,7 @@ export function useSession(cid: string) {
 /** Ended sessions, newest first (backend caps at 20). */
 export function useSessionHistory(cid: string) {
   return useQuery({
-    queryKey: ['campaign', cid, 'sessions', 'history'],
+    queryKey: qk.sessionHistory(cid),
     queryFn: () =>
       apiGet<{ sessions: GameSessionT[] }>(`/api/campaigns/${cid}/sessions`).then(
         (r) => r.sessions,
@@ -72,7 +71,7 @@ export function useStartSession(cid: string) {
         `/api/campaigns/${cid}/session`,
         sourceEncounterId ? { sourceEncounterId } : {},
       ).then((r) => r.session),
-    onSuccess: () => qc.invalidateQueries({ queryKey: key(cid) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.session(cid) }),
   });
 }
 
@@ -91,7 +90,7 @@ export function useUpdateSession(cid: string) {
      * re-seeds the tracker from that stale snapshot — so rolls, notes and HP
      * that are safely in the database look like they were never saved.
      */
-    onSuccess: (session) => qc.setQueryData(key(cid), session),
+    onSuccess: (session) => qc.setQueryData(qk.session(cid), session),
   });
 }
 
@@ -102,7 +101,7 @@ export function useEndSession(cid: string) {
       apiPost<{ session: GameSessionT }>(`/api/campaigns/${cid}/session/${sid}/end`).then(
         (r) => r.session,
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: key(cid) }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.session(cid) }),
   });
 }
 
