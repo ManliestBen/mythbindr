@@ -19,3 +19,7 @@ npm-debug.log*
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Claude Code local state (skills + lockfile stay tracked)
+.claude/worktrees/
+.claude/settings.local.json
