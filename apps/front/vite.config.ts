@@ -16,6 +16,15 @@ export default defineConfig({
       include: [/node_modules/, /packages\/shared\/dist/],
     },
   },
+  // Same story for the dev server: Vite treats the symlinked workspace package
+  // as source and serves its CommonJS dist raw to the browser, where named
+  // imports of runtime values fail ("does not provide an export named ...").
+  // Pre-bundling converts it to ESM. Note optimized deps are cached — after
+  // rebuilding packages/shared, restart Vite (it picks up the change via the
+  // dist file hash; use `vite --force` if it ever serves stale code).
+  optimizeDeps: {
+    include: ['@mythbindr/shared', '@mythbindr/shared/combat'],
+  },
   server: {
     // Bind all interfaces (0.0.0.0) so WSL2 forwards localhost:5173 from the
     // Windows browser. Loopback-only (the Vite default) isn't reliably forwarded.
