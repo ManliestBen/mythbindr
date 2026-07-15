@@ -52,6 +52,13 @@ export function useStartSession(cid: string) {
   });
 }
 
+/**
+ * Fallback-only as of Plan 011: live edits in `RunSession` dispatch named
+ * ops over the socket (`useSessionChannel`'s `dispatch`), which the server
+ * applies through its held room state. This wholesale PATCH is used only
+ * while the socket is disconnected (or hasn't finished (re)joining the
+ * room) — see docs/design/live-session.md § Cache reconciliation.
+ */
 export function useUpdateSession(cid: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -71,6 +78,8 @@ export function useUpdateSession(cid: string) {
   });
 }
 
+/** Fallback-only as of Plan 011: `RunSession` dispatches `session:end` over
+ *  the socket when live; this REST mutation only fires when disconnected. */
 export function useEndSession(cid: string) {
   const qc = useQueryClient();
   return useMutation({

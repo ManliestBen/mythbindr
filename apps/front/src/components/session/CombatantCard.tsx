@@ -1,17 +1,23 @@
 import { useState } from 'react';
 import { CONDITIONS, type Combatant } from '../../data/session';
-import { applyHeal } from '../../lib/combat';
 
 export default function CombatantCard({
   c,
   isCurrent,
   onChange,
+  onApplyDelta,
   onRemove,
   onDuplicate,
 }: {
   c: Combatant;
   isCurrent: boolean;
   onChange: (next: Combatant) => void;
+  /** Damage/heal as a relative delta (positive = damage, negative = healing —
+   *  the shared `applyDamage` op's convention). Deltas, not absolute HP, are
+   *  what let two tables damaging the same combatant concurrently SUM on the
+   *  server instead of last-writer-wins; the HP math itself (tempHp absorbs
+   *  first, heal-from-0, death-save reset) lives in the shared reducer. */
+  onApplyDelta: (amount: number) => void;
   onRemove: () => void;
   onDuplicate?: () => void;
 }) {
@@ -38,16 +44,11 @@ export default function CombatantCard({
   const bloodied = !down && c.maxHp > 0 && c.currentHp <= c.maxHp / 2;
 
   const damage = () => {
-    let dmg = n;
-    let temp = c.tempHp;
-    const used = Math.min(temp, dmg);
-    temp -= used;
-    dmg -= used;
-    onChange({ ...c, tempHp: temp, currentHp: Math.max(c.currentHp - dmg, -99) });
+    onApplyDelta(n);
     setAmt('');
   };
   const heal = () => {
-    onChange(applyHeal(c, n));
+    onApplyDelta(-n);
     setAmt('');
   };
 

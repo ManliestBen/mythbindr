@@ -18,6 +18,7 @@ import QuickReference from '../components/session/QuickReference';
 import PartyGlance from '../components/session/PartyGlance';
 import { useAuth } from '../auth/AuthProvider';
 import { useCreateElement } from '../data/elements';
+import { useToast } from '../components/ToastProvider';
 
 function sortByInit(cs: Combatant[]): Combatant[] {
   return [...cs].sort((a, b) => b.initiative - a.initiative);
@@ -29,19 +30,71 @@ export default function RunSession() {
   const fromEncounter = params.get('from') ?? undefined;
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
 
   const { data: loaded, isLoading } = useSession(cid ?? '');
   const start = useStartSession(cid ?? '');
+  // Fallback-only from here on (docs/design/live-session.md § Cache
+  // reconciliation): live edits go through `channel.dispatch`, which emits
+  // named ops over the socket. `useUpdateSession`'s wholesale PATCH is used
+  // only while the socket is disconnected (or still (re)joining) — see
+  // `persist` below, which is handed to `useSessionChannel` as
+  // `onFallbackPersist`.
   const update = useUpdateSession(cid ?? '');
+  // Fallback-only too: `session:end` is dispatched over the socket when
+  // live; this REST mutation only fires from `finishSession`'s fallback
+  // branch.
   const end = useEndSession(cid ?? '');
 
-  const [session, setSession] = useState<GameSessionT | null>(null);
   const [dirty, setDirty] = useState(false);
   const [refOpen, setRefOpen] = useState(false);
   const [ending, setEnding] = useState(false);
   const [recap, setRecap] = useState('');
   const [saveRecap, setSaveRecap] = useState(true);
   const createNote = useCreateElement(cid ?? '');
+
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  /** Legacy debounced-PATCH fallback — only invoked by `useSessionChannel`
+   *  while `status === 'fallback'` (socket disconnected or not yet joined). */
+  const persist = useCallback(
+    (next: GameSessionT) => {
+      if (timer.current) clearTimeout(timer.current);
+      setDirty(true);
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        update.mutate(
+          {
+            sid: next.id,
+            patch: {
+              round: next.round,
+              turnIndex: next.turnIndex,
+              combatants: next.combatants,
+              log: next.log,
+            },
+          },
+          {
+            // Only clear dirty when no newer edit is buffered; otherwise a
+            // stale mutation settling would flash "Saved" while an edit is
+            // still waiting out the debounce.
+            onSettled: () => {
+              if (!timer.current) setDirty(false);
+            },
+          },
+        );
+      }, 800);
+    },
+    [update],
+  );
+
+  const channel = useSessionChannel(cid, persist);
+  const session = channel.session;
 
   // Table hotkeys — routed through refs because the turn handlers close over
   // the current session state further down.
@@ -74,78 +127,29 @@ export default function RunSession() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
   useEffect(() => {
-    if (loaded) setSession(loaded);
-    // re-init only when the active session identity changes
+    if (loaded) channel.seed(loaded);
+    // re-seed only when the active session identity changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded?.id]);
 
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    [],
-  );
-  const persist = useCallback(
-    (next: GameSessionT) => {
-      if (timer.current) clearTimeout(timer.current);
-      setDirty(true);
-      timer.current = setTimeout(() => {
-        timer.current = null;
-        update.mutate(
-          {
-            sid: next.id,
-            patch: {
-              round: next.round,
-              turnIndex: next.turnIndex,
-              combatants: next.combatants,
-              log: next.log,
-            },
-          },
-          {
-            // Only clear dirty when no newer edit is buffered; otherwise a
-            // stale mutation settling would flash "Saved" while an edit is
-            // still waiting out the debounce.
-            onSettled: () => {
-              if (!timer.current) setDirty(false);
-            },
-          },
-        );
-      }, 800);
-    },
-    [update],
-  );
-
-  const patch = useCallback(
-    (updater: (s: GameSessionT) => GameSessionT) =>
-      setSession((cur) => {
-        if (!cur) return cur;
-        const next = updater(cur);
-        persist(next);
-        return next;
-      }),
-    [persist],
-  );
-
-  useSessionChannel(cid, session?.id, (remote) => {
-    // Slice-1 conflict posture (docs/design/live-session.md): adopt remote state
-    // only when this tab has nothing in flight — a buffered edit (dirty/timer)
-    // or a pending PATCH wins locally and reconciles on its own onSuccess.
-    if (dirty || timer.current || update.isPending) return;
-    setSession(remote);
-  });
+  useEffect(() => {
+    if (channel.errorToken > 0) {
+      toast("That change didn't save — the table's current state has been restored.", {
+        kind: 'error',
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel.errorToken]);
 
   const addLog = useCallback(
     (kind: 'roll' | 'note' | 'event', text: string) =>
-      patch((s) => ({
-        ...s,
-        log: [
-          ...s.log,
-          { kind, text, by: user?.displayName, at: new Date().toISOString() },
-        ].slice(-500),
-      })),
-    [patch, user],
+      channel.dispatch({
+        kind: 'appendLog',
+        entry: { kind, text, by: user?.displayName, at: new Date().toISOString() },
+      }),
+    [channel, user],
   );
 
   if (isLoading && !session) return <p className="text-sm text-fg-muted">Loading…</p>;
@@ -158,7 +162,7 @@ export default function RunSession() {
           Start a live session to track initiative, HP, and conditions at the table.
         </p>
         <button
-          onClick={() => start.mutate(fromEncounter, { onSuccess: (s) => setSession(s) })}
+          onClick={() => start.mutate(fromEncounter, { onSuccess: (s) => channel.seed(s) })}
           disabled={start.isPending}
           className="mt-4 rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-app-bg hover:bg-brand-bright disabled:opacity-50"
         >
@@ -171,107 +175,59 @@ export default function RunSession() {
   const order = sortByInit(session.combatants);
   const currentCid = order.length ? order[session.turnIndex % order.length]?.cid : null;
 
+  /** Every field but `cid` — the reducer's `updateCombatant` op merges this
+   *  over the held combatant (`{...c, ...patch}`), so shipping the whole
+   *  next object (minus `cid`) needs no per-field intent-guessing about
+   *  which control on `CombatantCard` produced the change; its `onChange`
+   *  prop signature stays exactly `(next: Combatant) => void`. Damage/heal
+   *  do NOT come through here — they're relative deltas via `onApplyDelta`
+   *  → the `applyDamage` op, so concurrent damage from two editors sums
+   *  server-side instead of last-writer-wins on an absolute `currentHp`. */
+  const patchOf = (next: Combatant): Partial<Omit<Combatant, 'cid'>> => {
+    const { cid: _cid, ...patch } = next;
+    return patch;
+  };
+
   const changeCombatant = (next: Combatant) =>
-    patch((s) => {
-      const before = sortByInit(s.combatants);
-      const onTurn = before.length ? before[s.turnIndex % before.length]?.cid : null;
-      const combatants = s.combatants.map((c) => (c.cid === next.cid ? next : c));
-      // Editing initiative re-sorts the order, which would otherwise slide the
-      // turn pointer onto whoever now occupies that slot. Follow the combatant
-      // whose turn it actually is.
-      const after = sortByInit(combatants);
-      const ti = onTurn ? after.findIndex((c) => c.cid === onTurn) : -1;
-      return { ...s, combatants, turnIndex: ti >= 0 ? ti : s.turnIndex };
-    });
-  const removeCombatant = (rm: string) =>
-    patch((s) => {
-      const before = sortByInit(s.combatants);
-      const onTurn = before.length ? before[s.turnIndex % before.length]?.cid : null;
-      const combatants = s.combatants.filter((c) => c.cid !== rm);
-      const after = sortByInit(combatants);
-      // Follow whoever's turn it is; if THEY were removed, keep the same slot
-      // (clamped) so the ring lands on the next creature in order.
-      const ti = onTurn && onTurn !== rm ? after.findIndex((c) => c.cid === onTurn) : -1;
-      const fallback = after.length ? Math.min(s.turnIndex, after.length - 1) : 0;
-      return { ...s, combatants, turnIndex: ti >= 0 ? ti : fallback };
-    });
-  const addCombatant = (c: Combatant) =>
-    patch((s) => ({ ...s, combatants: [...s.combatants, c] }));
+    channel.dispatch({ kind: 'updateCombatant', cid: next.cid, patch: patchOf(next) });
+  const removeCombatant = (rm: string) => channel.dispatch({ kind: 'removeCombatant', cid: rm });
+  const addCombatant = (c: Combatant) => channel.dispatch({ kind: 'addCombatant', combatant: c });
 
   /** "Another goblin joins!" — copy at full HP, fresh initiative, numbered name. */
-  const duplicateCombatant = (src: Combatant) =>
-    patch((s) => {
-      const base = src.name.replace(/\s+\d+$/, '');
-      const taken = s.combatants.map((x) => {
-        if (x.name === base) return 1;
-        if (!x.name.startsWith(`${base} `)) return 0;
-        const suffix = x.name.slice(base.length + 1);
-        return /^\d+$/.test(suffix) ? parseInt(suffix, 10) : 0;
-      });
-      const next = Math.max(1, ...taken) + 1;
-      const copy: Combatant = {
-        ...src,
-        cid: crypto.randomUUID(),
-        name: `${base} ${next}`,
-        initiative: Math.floor(Math.random() * 20) + 1,
-        currentHp: src.maxHp || src.currentHp,
-        tempHp: 0,
-        conditions: [],
-        deathSaves: { successes: 0, failures: 0 },
-      };
-      return { ...s, combatants: [...s.combatants, copy] };
+  const duplicateCombatant = (src: Combatant) => {
+    const base = src.name.replace(/\s+\d+$/, '');
+    const taken = session.combatants.map((x) => {
+      if (x.name === base) return 1;
+      if (!x.name.startsWith(`${base} `)) return 0;
+      const suffix = x.name.slice(base.length + 1);
+      return /^\d+$/.test(suffix) ? parseInt(suffix, 10) : 0;
     });
+    const next = Math.max(1, ...taken) + 1;
+    const copy: Combatant = {
+      ...src,
+      cid: crypto.randomUUID(),
+      name: `${base} ${next}`,
+      initiative: Math.floor(Math.random() * 20) + 1,
+      currentHp: src.maxHp || src.currentHp,
+      tempHp: 0,
+      conditions: [],
+      deathSaves: { successes: 0, failures: 0 },
+    };
+    channel.dispatch({ kind: 'addCombatant', combatant: copy });
+  };
 
-  const nextTurn = () =>
-    patch((s) => {
-      const ord = sortByInit(s.combatants);
-      if (ord.length === 0) return s;
-      let ti = s.turnIndex + 1;
-      let round = s.round;
-      if (ti >= ord.length) {
-        ti = 0;
-        round += 1;
-      }
-      // Tick the new current combatant's timed conditions at the start of their turn.
-      const currentId = ord[ti].cid;
-      const combatants = s.combatants.map((c) =>
-        c.cid === currentId
-          ? {
-              ...c,
-              conditions: c.conditions
-                .map((x) => (x.rounds == null ? x : { ...x, rounds: x.rounds - 1 }))
-                .filter((x) => x.rounds == null || x.rounds > 0),
-            }
-          : c,
-      );
-      const log =
-        ti === 0
-          ? [
-              ...s.log,
-              {
-                kind: 'event' as const,
-                text: `Round ${round} begins`,
-                by: user?.displayName,
-                at: new Date().toISOString(),
-              },
-            ].slice(-500)
-          : s.log;
-      return { ...s, turnIndex: ti, round, combatants, log };
-    });
+  // Turn-order bookkeeping (advancing/rewinding, condition ticking, the
+  // "follow whose turn it is" logic on add/remove/reorder) all now lives
+  // once, in the shared reducer (`@mythbindr/shared/combat`'s `applyOp`) —
+  // the exact function the server runs — so it isn't reimplemented here.
+  const nextTurn = () => channel.dispatch({ kind: 'nextTurn' });
 
   /**
    * Step the turn pointer back. Deliberately does not un-tick conditions:
    * nextTurn drops them once they expire, so there is nothing left to restore.
    * This walks the order back, it does not undo the turn.
    */
-  const prevTurn = () =>
-    patch((s) => {
-      const ord = sortByInit(s.combatants);
-      if (ord.length === 0) return s;
-      if (s.turnIndex <= 0 && s.round <= 1) return s; // already at the top of round 1
-      if (s.turnIndex > 0) return { ...s, turnIndex: s.turnIndex - 1 };
-      return { ...s, turnIndex: ord.length - 1, round: Math.max(1, s.round - 1) };
-    });
+  const prevTurn = () => channel.dispatch({ kind: 'prevTurn' });
 
   nextTurnRef.current = nextTurn;
   prevTurnRef.current = prevTurn;
@@ -279,7 +235,7 @@ export default function RunSession() {
   const atStart = session.turnIndex <= 0 && session.round <= 1;
 
   const finishSession = async () => {
-    if (timer.current) {
+    if (channel.status === 'fallback' && timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
       await update
@@ -322,13 +278,22 @@ export default function RunSession() {
         /* the recap is a bonus — never block ending the session on it */
       }
     }
-    end.mutate(session.id, {
-      onSuccess: () => {
-        setSession(null);
-        navigate(`/campaigns/${cid}`);
-      },
-    });
+    if (channel.status === 'live') {
+      // The end op serializes after every op already emitted on this socket
+      // (Socket.IO preserves per-connection order; the room applies ops in
+      // receipt order) — nothing to await, just fire it and leave.
+      channel.dispatch({ kind: 'end' });
+      navigate(`/campaigns/${cid}`);
+    } else {
+      end.mutate(session.id, {
+        onSuccess: () => navigate(`/campaigns/${cid}`),
+      });
+    }
   };
+
+  const saving =
+    channel.pendingCount > 0 || (channel.status === 'fallback' && (dirty || update.isPending));
+  const saveError = channel.hasError || (channel.status === 'fallback' && update.isError);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -343,7 +308,15 @@ export default function RunSession() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <SaveStatus pending={update.isPending || dirty} error={update.isError} />
+          {channel.status === 'fallback' && (
+            <span
+              title="Reconnecting — edits are saved locally and will sync once the connection is back."
+              className="rounded-lg bg-amber-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-400"
+            >
+              Offline
+            </span>
+          )}
+          <SaveStatus pending={saving} error={saveError} />
           <button
             onClick={() => setRefOpen((v) => !v)}
             title="Rules quick reference: conditions, combat actions, and an instant NPC"
@@ -392,6 +365,9 @@ export default function RunSession() {
               c={c}
               isCurrent={c.cid === currentCid}
               onChange={changeCombatant}
+              onApplyDelta={(amount) =>
+                channel.dispatch({ kind: 'applyDamage', cid: c.cid, amount })
+              }
               onRemove={() => removeCombatant(c.cid)}
               onDuplicate={() => duplicateCombatant(c)}
             />
@@ -465,7 +441,7 @@ export default function RunSession() {
   );
 }
 
-/** Saves are debounced and fire in the background — say so, and never fail silently. */
+/** Saves are async and fire in the background — say so, and never fail silently. */
 function SaveStatus({ pending, error }: { pending: boolean; error: boolean }) {
   if (error) {
     return (
