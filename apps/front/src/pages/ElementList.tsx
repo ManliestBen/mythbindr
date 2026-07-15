@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ELEMENT_TYPE_BY_SEGMENT } from '../data/elementTypes';
 import { useElements, useRestoreElement, type ElementT } from '../data/elements';
+import { questProgress } from '../lib/quests';
 
 /** One informative line under the element name, per type. */
 function summarize(el: ElementT): string {
@@ -65,20 +66,6 @@ function statusBadge(el: ElementT): { label: string; cls: string } | null {
     return { label: status, cls: 'bg-red-500/15 text-red-400' };
   }
   return null;
-}
-
-/** Quest objectives: one per line; a leading "x " marks a line done. */
-function questProgress(el: ElementT): { done: number; total: number } | null {
-  if (el.type !== 'quest') return null;
-  const raw = (el.data as Record<string, unknown>).objectives;
-  if (typeof raw !== 'string' || !raw.trim()) return null;
-  const lines = raw
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean);
-  if (lines.length === 0) return null;
-  const done = lines.filter((l) => /^x\s/i.test(l)).length;
-  return { done, total: lines.length };
 }
 
 export default function ElementList() {

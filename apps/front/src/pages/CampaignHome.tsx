@@ -12,6 +12,9 @@ import GettingStarted from '../components/GettingStarted';
 import { useDashboard } from '../data/dashboard';
 import { useActivity } from '../data/activity';
 import { useSession } from '../data/session';
+import { useElements } from '../data/elements';
+import { questProgress, questStatus } from '../lib/quests';
+import { timeAgo } from '../lib/timeAgo';
 import {
   ELEMENT_SEGMENTS_ORDERED,
   ELEMENT_TYPE_BY_SEGMENT,
@@ -32,6 +35,7 @@ export default function CampaignHome() {
   const dash = useDashboard(cid ?? '');
   const activity = useActivity(cid ?? '');
   const liveSession = useSession(cid ?? '');
+  const quests = useElements(cid ?? '', { type: 'quest' });
   const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
 
@@ -200,6 +204,131 @@ export default function CampaignHome() {
             </Link>
           );
         })}
+      </div>
+
+      {/* Quick-add: the things a GM reaches for between sessions. */}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {(['npcs', 'quests', 'encounters', 'notes'] as const).map((s) => (
+          <Link
+            key={s}
+            to={`/campaigns/${campaign.id}/${s}/new`}
+            className="rounded-lg border border-app-border px-3 py-1.5 text-xs font-semibold text-fg-muted hover:border-brand hover:text-brand"
+          >
+            + {ELEMENT_TYPE_BY_SEGMENT[s].label}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Open quests: what the party is on the hook for right now. */}
+        <div className="rounded-xl border border-app-border bg-app-surface p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold">Open quests</h3>
+            <Link
+              to={`/campaigns/${campaign.id}/quests`}
+              className="text-xs text-fg-muted hover:text-brand"
+            >
+              View all →
+            </Link>
+          </div>
+          {(() => {
+            const open = (quests.data ?? []).filter((q) =>
+              ['active', 'rumored'].includes(questStatus(q)),
+            );
+            if (open.length === 0) {
+              return (
+                <p className="mt-3 text-sm text-fg-muted">
+                  Nothing open.{' '}
+                  <Link
+                    to={`/campaigns/${campaign.id}/quests/new`}
+                    className="text-brand hover:underline"
+                  >
+                    Write the first quest
+                  </Link>{' '}
+                  — one clear objective is plenty.
+                </p>
+              );
+            }
+            return (
+              <ul className="mt-3 space-y-2.5">
+                {open.slice(0, 5).map((q) => {
+                  const p = questProgress(q);
+                  const status = questStatus(q);
+                  return (
+                    <li key={q.id}>
+                      <Link
+                        to={`/campaigns/${campaign.id}/quests/${q.id}`}
+                        className="group block"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="truncate text-sm font-medium group-hover:text-brand">
+                            {q.name}
+                          </span>
+                          <span
+                            className={[
+                              'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                              status === 'active'
+                                ? 'bg-brand/15 text-brand'
+                                : 'border border-app-border text-fg-muted',
+                            ].join(' ')}
+                          >
+                            {status}
+                          </span>
+                        </span>
+                        {p && (
+                          <span className="mt-1 flex items-center gap-2">
+                            <span className="h-1 w-32 overflow-hidden rounded-full bg-app-surface2">
+                              <span
+                                className="block h-full rounded-full bg-brand"
+                                style={{ width: `${(p.done / p.total) * 100}%` }}
+                              />
+                            </span>
+                            <span className="text-[10px] text-fg-muted">
+                              {p.done}/{p.total}
+                            </span>
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            );
+          })()}
+        </div>
+
+        {/* Recently edited: pick up where you left off. */}
+        <div className="rounded-xl border border-app-border bg-app-surface p-5">
+          <h3 className="text-sm font-bold">Recently edited</h3>
+          {dash.data && dash.data.recent.length > 0 ? (
+            <ul className="mt-3 space-y-1.5">
+              {dash.data.recent.slice(0, 6).map((r) => {
+                const rseg = segmentForType(r.type);
+                return (
+                  <li key={r.id} className="flex items-center justify-between gap-3">
+                    {rseg ? (
+                      <Link
+                        to={`/campaigns/${campaign.id}/${rseg}/${r.id}`}
+                        className="min-w-0 truncate text-sm hover:text-brand"
+                      >
+                        {r.name}
+                      </Link>
+                    ) : (
+                      <span className="min-w-0 truncate text-sm">{r.name}</span>
+                    )}
+                    <span className="shrink-0 text-[10px] uppercase tracking-wide text-fg-muted">
+                      {r.type} · {timeAgo(r.updatedAt)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-fg-muted">
+              Nothing yet — everything you create shows up here.
+            </p>
+          )}
+        </div>
       </div>
 
       {campaign.storySoFar && (
