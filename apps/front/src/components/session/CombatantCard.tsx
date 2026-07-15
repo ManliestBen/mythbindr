@@ -6,13 +6,17 @@ export default function CombatantCard({
   isCurrent,
   onChange,
   onRemove,
+  onDuplicate,
 }: {
   c: Combatant;
   isCurrent: boolean;
   onChange: (next: Combatant) => void;
   onRemove: () => void;
+  onDuplicate?: () => void;
 }) {
   const [amt, setAmt] = useState('');
+  const [showNotes, setShowNotes] = useState(Boolean(c.notes));
+  const [duration, setDuration] = useState(''); // '' = until removed
   const n = Math.max(parseInt(amt, 10) || 0, 0);
 
   /**
@@ -49,7 +53,8 @@ export default function CombatantCard({
 
   const addCondition = (name: string) => {
     if (!name || c.conditions.some((x) => x.name === name)) return;
-    onChange({ ...c, conditions: [...c.conditions, { name, rounds: null }] });
+    const rounds = duration ? parseInt(duration, 10) : null;
+    onChange({ ...c, conditions: [...c.conditions, { name, rounds }] });
   };
   const removeCondition = (name: string) =>
     onChange({ ...c, conditions: c.conditions.filter((x) => x.name !== name) });
@@ -102,9 +107,30 @@ export default function CombatantCard({
             </span>
           )}
         </div>
-        <button onClick={onRemove} className="text-xs text-fg-muted hover:text-red-400">
-          ✕
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setShowNotes((v) => !v)}
+            title="Tactics / notes for this combatant"
+            className={[
+              'text-xs hover:text-fg',
+              showNotes || c.notes ? 'text-brand' : 'text-fg-muted',
+            ].join(' ')}
+          >
+            ✎
+          </button>
+          {onDuplicate && (
+            <button
+              onClick={onDuplicate}
+              title="Duplicate (adds another with fresh initiative and full HP)"
+              className="text-xs text-fg-muted hover:text-fg"
+            >
+              ⧉
+            </button>
+          )}
+          <button onClick={onRemove} className="text-xs text-fg-muted hover:text-red-400">
+            ✕
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
@@ -162,6 +188,16 @@ export default function CombatantCard({
         </div>
       )}
 
+      {showNotes && (
+        <input
+          value={c.notes}
+          onChange={(e) => onChange({ ...c, notes: e.target.value })}
+          placeholder="Tactics, resistances, reminders…"
+          className="mt-2 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1 text-xs outline-none focus:border-brand"
+          aria-label={`Notes for ${c.name}`}
+        />
+      )}
+
       {/* Conditions */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {c.conditions.map((x) => (
@@ -171,7 +207,11 @@ export default function CombatantCard({
             className="rounded-full bg-app-surface2 px-2 py-0.5 text-[10px] text-fg-muted hover:text-red-400"
             title="Remove"
           >
-            {x.name} ✕
+            {x.name}
+            {x.rounds != null && (
+              <span className="ml-1 font-semibold text-brand">{x.rounds}</span>
+            )}{' '}
+            ✕
           </button>
         ))}
         <select
@@ -183,6 +223,19 @@ export default function CombatantCard({
           {CONDITIONS.filter((name) => !c.conditions.some((x) => x.name === name)).map((name) => (
             <option key={name} value={name}>
               {name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={duration}
+          onChange={(e) => setDuration(e.target.value)}
+          title="How many rounds the next condition lasts (ticks down on this combatant's turn)"
+          className="rounded-lg border border-app-border bg-app-bg px-1.5 py-0.5 text-[11px] text-fg-muted outline-none focus:border-brand"
+        >
+          <option value="">until removed</option>
+          {[1, 2, 3, 5, 10].map((r) => (
+            <option key={r} value={r}>
+              {r} round{r === 1 ? '' : 's'}
             </option>
           ))}
         </select>

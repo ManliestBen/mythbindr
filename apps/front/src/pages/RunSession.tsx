@@ -160,6 +160,30 @@ export default function RunSession() {
   const addCombatant = (c: Combatant) =>
     patch((s) => ({ ...s, combatants: [...s.combatants, c] }));
 
+  /** "Another goblin joins!" — copy at full HP, fresh initiative, numbered name. */
+  const duplicateCombatant = (src: Combatant) =>
+    patch((s) => {
+      const base = src.name.replace(/\s+\d+$/, '');
+      const taken = s.combatants.map((x) => {
+        if (x.name === base) return 1;
+        if (!x.name.startsWith(`${base} `)) return 0;
+        const suffix = x.name.slice(base.length + 1);
+        return /^\d+$/.test(suffix) ? parseInt(suffix, 10) : 0;
+      });
+      const next = Math.max(1, ...taken) + 1;
+      const copy: Combatant = {
+        ...src,
+        cid: crypto.randomUUID(),
+        name: `${base} ${next}`,
+        initiative: Math.floor(Math.random() * 20) + 1,
+        currentHp: src.maxHp || src.currentHp,
+        tempHp: 0,
+        conditions: [],
+        deathSaves: { successes: 0, failures: 0 },
+      };
+      return { ...s, combatants: [...s.combatants, copy] };
+    });
+
   const nextTurn = () =>
     patch((s) => {
       const ord = sortByInit(s.combatants);
@@ -314,6 +338,7 @@ export default function RunSession() {
               isCurrent={c.cid === currentCid}
               onChange={changeCombatant}
               onRemove={() => removeCombatant(c.cid)}
+              onDuplicate={() => duplicateCombatant(c)}
             />
           ))}
           {order.length === 0 && (
