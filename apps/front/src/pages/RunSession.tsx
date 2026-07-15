@@ -16,6 +16,7 @@ import SpotifyPlayer from '../components/session/SpotifyPlayer';
 import QuickReference from '../components/session/QuickReference';
 import PartyGlance from '../components/session/PartyGlance';
 import { useAuth } from '../auth/AuthProvider';
+import { useCreateElement } from '../data/elements';
 
 function sortByInit(cs: Combatant[]): Combatant[] {
   return [...cs].sort((a, b) => b.initiative - a.initiative);
@@ -35,6 +36,10 @@ export default function RunSession() {
 
   const [session, setSession] = useState<GameSessionT | null>(null);
   const [refOpen, setRefOpen] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [recap, setRecap] = useState('');
+  const [saveRecap, setSaveRecap] = useState(true);
+  const createNote = useCreateElement(cid ?? '');
 
   // Table hotkeys — routed through refs because the turn handlers close over
   // the current session state further down.
@@ -211,8 +216,33 @@ export default function RunSession() {
 
   const atStart = session.turnIndex <= 0 && session.round <= 1;
 
-  const endSession = () => {
-    if (!window.confirm('End this session?')) return;
+  const finishSession = async () => {
+    if (saveRecap) {
+      const highlights = session.log
+        .filter((l) => l.kind !== 'roll')
+        .slice(-15)
+        .map((l) => `• ${l.text}`)
+        .join('\n');
+      const bodyParts = [
+        recap.trim(),
+        highlights ? `Highlights:\n${highlights}` : '',
+        `(${session.round} round${session.round === 1 ? '' : 's'}, ${session.combatants.length} combatants)`,
+      ].filter(Boolean);
+      try {
+        await createNote.mutateAsync({
+          type: 'note',
+          name: `Session recap — ${new Date().toLocaleDateString()}`,
+          body: bodyParts.join('\n\n'),
+          tags: ['session-recap'],
+          playerVisible: false,
+          secrets: '',
+          data: {},
+          relationships: [],
+        });
+      } catch {
+        /* the recap is a bonus — never block ending the session on it */
+      }
+    }
     end.mutate(session.id, {
       onSuccess: () => {
         setSession(null);
@@ -262,7 +292,7 @@ export default function RunSession() {
             Next turn →
           </button>
           <button
-            onClick={endSession}
+            onClick={() => setEnding(true)}
             className="rounded-lg border border-app-border px-3 py-2 text-sm text-fg-muted hover:text-fg"
           >
             End
@@ -305,6 +335,52 @@ export default function RunSession() {
         onClose={() => setRefOpen(false)}
         onLog={(t) => addLog('note', t)}
       />
+
+      {ending && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4"
+          onMouseDown={(e) => e.target === e.currentTarget && setEnding(false)}
+          role="dialog"
+          aria-label="End session"
+        >
+          <div className="w-full max-w-md rounded-xl border border-app-border bg-app-surface p-5 shadow-2xl">
+            <h2 className="font-heading text-lg font-bold">End this session?</h2>
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={saveRecap}
+                onChange={(e) => setSaveRecap(e.target.checked)}
+                className="accent-brand"
+              />
+              Save a recap note (log highlights included)
+            </label>
+            {saveRecap && (
+              <textarea
+                value={recap}
+                onChange={(e) => setRecap(e.target.value)}
+                rows={3}
+                placeholder="What happened tonight? Two sentences is plenty — future-you will be grateful."
+                className="mt-2 w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-brand"
+              />
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setEnding(false)}
+                className="rounded-lg border border-app-border px-4 py-2 text-sm text-fg-muted hover:text-fg"
+              >
+                Keep playing
+              </button>
+              <button
+                onClick={finishSession}
+                disabled={end.isPending || createNote.isPending}
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-app-bg hover:bg-brand-bright disabled:opacity-50"
+              >
+                {end.isPending || createNote.isPending ? 'Ending…' : 'End session'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

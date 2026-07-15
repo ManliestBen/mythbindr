@@ -52,6 +52,18 @@ export function useSession(cid: string) {
   });
 }
 
+/** Ended sessions, newest first (backend caps at 20). */
+export function useSessionHistory(cid: string) {
+  return useQuery({
+    queryKey: ['campaign', cid, 'sessions', 'history'],
+    queryFn: () =>
+      apiGet<{ sessions: GameSessionT[] }>(`/api/campaigns/${cid}/sessions`).then(
+        (r) => r.sessions,
+      ),
+    enabled: !!cid,
+  });
+}
+
 export function useStartSession(cid: string) {
   const qc = useQueryClient();
   return useMutation({

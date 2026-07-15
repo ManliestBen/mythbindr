@@ -12,7 +12,7 @@ import GettingStarted from '../components/GettingStarted';
 import Skeleton from '../components/Skeleton';
 import { useDashboard } from '../data/dashboard';
 import { useActivity } from '../data/activity';
-import { useSession } from '../data/session';
+import { useSession, useSessionHistory } from '../data/session';
 import { useElements } from '../data/elements';
 import { questProgress, questStatus } from '../lib/quests';
 import { timeAgo } from '../lib/timeAgo';
@@ -37,6 +37,7 @@ export default function CampaignHome() {
   const activity = useActivity(cid ?? '');
   const liveSession = useSession(cid ?? '');
   const quests = useElements(cid ?? '', { type: 'quest' });
+  const history = useSessionHistory(cid ?? '');
   const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
 
@@ -366,6 +367,49 @@ export default function CampaignHome() {
           <p className="mt-2 whitespace-pre-wrap text-sm text-fg-muted">
             {campaign.storySoFar}
           </p>
+        </div>
+      )}
+
+      {history.data && history.data.length > 0 && (
+        <div className="mt-8 rounded-xl border border-app-border bg-app-surface p-5">
+          <h3 className="text-sm font-bold">Past sessions</h3>
+          <ul className="mt-2 space-y-1">
+            {history.data.map((s) => (
+              <li key={s.id}>
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-app-surface2/50 [&::-webkit-details-marker]:hidden">
+                    <span className="font-medium">
+                      {new Date(s.startedAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                    <span className="text-xs text-fg-muted">
+                      {s.round} round{s.round === 1 ? '' : 's'} · {s.log.length} log{' '}
+                      {s.log.length === 1 ? 'entry' : 'entries'}
+                    </span>
+                    <span className="ml-auto text-xs text-fg-muted group-open:rotate-90">
+                      ›
+                    </span>
+                  </summary>
+                  {s.log.length > 0 ? (
+                    <ul className="mt-1 max-h-56 space-y-0.5 overflow-y-auto border-l border-app-border py-1 pl-4 text-xs text-fg-muted">
+                      {s.log.map((entry, i) => (
+                        <li key={i}>
+                          {entry.kind === 'roll' ? '🎲 ' : entry.kind === 'event' ? '⚔ ' : '✎ '}
+                          {entry.text}
+                          {entry.by ? ` — ${entry.by}` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 pl-4 text-xs text-fg-muted">No log entries.</p>
+                  )}
+                </details>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
