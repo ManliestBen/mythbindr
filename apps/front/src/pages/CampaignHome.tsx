@@ -10,15 +10,16 @@ import {
 import CampaignForm from '../components/CampaignForm';
 import { useDashboard } from '../data/dashboard';
 import { useActivity } from '../data/activity';
-import { ELEMENT_TYPE_BY_SEGMENT, segmentForType } from '../data/elementTypes';
+import {
+  ELEMENT_SEGMENTS_ORDERED,
+  ELEMENT_TYPE_BY_SEGMENT,
+  segmentForType,
+} from '../data/elementTypes';
 
-const ELEMENT_TYPES = [
-  { type: 'npcs', label: 'NPCs' },
-  { type: 'locations', label: 'Locations' },
-  { type: 'encounters', label: 'Encounters' },
-  { type: 'items', label: 'Items' },
-  { type: 'notes', label: 'Notes' },
-];
+const ELEMENT_TYPES = ELEMENT_SEGMENTS_ORDERED.map((seg) => ({
+  type: seg,
+  label: ELEMENT_TYPE_BY_SEGMENT[seg].plural,
+}));
 
 export default function CampaignHome() {
   const { cid } = useParams();
@@ -129,7 +130,7 @@ export default function CampaignHome() {
       </div>
 
       {/* Element-type hub with live counts (dashboard aggregation). */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {ELEMENT_TYPES.map((e) => {
           const backendType = ELEMENT_TYPE_BY_SEGMENT[e.type]?.type ?? '';
           const count = dash.data?.counts[backendType] ?? 0;

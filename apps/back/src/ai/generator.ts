@@ -101,7 +101,7 @@ class ClaudeContentGenerator implements ContentGenerator {
       messages: [
         {
           role: 'user',
-          content: `Design a D&D 5e campaign from this premise. Provide a name, one-line hook, a premise (2-3 paragraphs), and 8-12 starter elements (a mix of npc, location, encounter, item, note) that reference each other where natural.\n\nPremise: ${input.prompt}`,
+          content: `Design a D&D 5e campaign from this premise. Provide a name, one-line hook, a premise (2-3 paragraphs), and 8-12 starter elements (a mix of npc, location, encounter, item, quest, faction, note) that reference each other where natural.\n\nPremise: ${input.prompt}`,
         },
       ],
       output_config: { format: zodOutputFormat(campaignSchema) },

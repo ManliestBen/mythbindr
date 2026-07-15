@@ -126,7 +126,79 @@ export const ELEMENT_TYPE_BY_SEGMENT: Record<string, ElementTypeConfig> = {
       { key: 'effect', label: 'Mechanical effect', kind: 'textarea' },
     ],
   },
+  quests: {
+    type: 'quest',
+    label: 'Quest',
+    plural: 'Quests',
+    available: true,
+    relationships: true,
+    dataFields: [
+      {
+        key: 'status',
+        label: 'Status',
+        kind: 'select',
+        options: ['rumored', 'active', 'completed', 'failed'],
+      },
+      { key: 'giver', label: 'Quest giver', kind: 'text' },
+      { key: 'hook', label: 'Hook (the lure)', kind: 'text' },
+      { key: 'objectives', label: 'Objectives (one per line, start a line with "x " when done)', kind: 'textarea' },
+      { key: 'xp', label: 'XP reward', kind: 'number' },
+      { key: 'gold', label: 'Gold reward', kind: 'number' },
+      { key: 'rewards', label: 'Other rewards', kind: 'textarea' },
+      { key: 'consequences', label: 'Consequences / branches', kind: 'textarea' },
+    ],
+  },
+  factions: {
+    type: 'faction',
+    label: 'Faction',
+    plural: 'Factions',
+    available: true,
+    relationships: true,
+    dataFields: [
+      {
+        key: 'influence',
+        label: 'Influence',
+        kind: 'select',
+        options: ['unknown', 'minor', 'established', 'powerful', 'dominant'],
+      },
+      { key: 'leader', label: 'Leader', kind: 'text' },
+      { key: 'headquarters', label: 'Headquarters', kind: 'text' },
+      { key: 'goals', label: 'Goals', kind: 'textarea' },
+      { key: 'members', label: 'Notable members', kind: 'textarea' },
+      { key: 'alliesEnemies', label: 'Allies & enemies', kind: 'textarea' },
+    ],
+  },
+  pcs: {
+    type: 'pc',
+    label: 'Player Character',
+    plural: 'Party',
+    available: true,
+    relationships: true,
+    dataFields: [
+      { key: 'playerName', label: 'Player name', kind: 'text' },
+      { key: 'race', label: 'Race / ancestry', kind: 'text' },
+      { key: 'klass', label: 'Class & subclass', kind: 'text' },
+      { key: 'level', label: 'Level', kind: 'number' },
+      { key: 'ac', label: 'Armor Class (AC)', kind: 'number' },
+      { key: 'hpMax', label: 'Max HP', kind: 'number' },
+      { key: 'passivePerception', label: 'Passive Perception', kind: 'number' },
+      { key: 'flawsBonds', label: 'Flaws & bonds', kind: 'textarea' },
+      { key: 'backstoryHooks', label: 'Backstory hooks (things you can weaponize)', kind: 'textarea' },
+    ],
+  },
 };
+
+/** Display order for nav + campaign-home tiles (prep-first: story, people, places…). */
+export const ELEMENT_SEGMENTS_ORDERED = [
+  'quests',
+  'npcs',
+  'locations',
+  'encounters',
+  'items',
+  'factions',
+  'pcs',
+  'notes',
+] as const;
 
 /** Reverse lookup: backend element `type` → URL segment (for linking to an element). */
 export function segmentForType(type: string): string | undefined {

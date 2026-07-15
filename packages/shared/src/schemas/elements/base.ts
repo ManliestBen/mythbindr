@@ -1,7 +1,16 @@
 import { z } from 'zod';
 
-/** Element types. PCs, quests, factions are [P1] and intentionally excluded for now. */
-export const ELEMENT_TYPES = ['npc', 'location', 'encounter', 'item', 'note'] as const;
+/** Element types. */
+export const ELEMENT_TYPES = [
+  'npc',
+  'location',
+  'encounter',
+  'item',
+  'note',
+  'quest',
+  'faction',
+  'pc',
+] as const;
 export type ElementType = (typeof ELEMENT_TYPES)[number];
 
 export const soundtrackSchema = z

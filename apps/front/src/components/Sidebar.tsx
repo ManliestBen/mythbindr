@@ -4,13 +4,12 @@ import { useAuth } from '../auth/AuthProvider';
 import { useActiveCampaign } from '../campaign/ActiveCampaignProvider';
 import SystemStatus from './SystemStatus';
 
-const ELEMENT_NAV = [
-  { type: 'npcs', label: 'NPCs' },
-  { type: 'locations', label: 'Locations' },
-  { type: 'encounters', label: 'Encounters' },
-  { type: 'items', label: 'Items' },
-  { type: 'notes', label: 'Notes' },
-];
+import { ELEMENT_SEGMENTS_ORDERED, ELEMENT_TYPE_BY_SEGMENT } from '../data/elementTypes';
+
+const ELEMENT_NAV = ELEMENT_SEGMENTS_ORDERED.map((seg) => ({
+  type: seg,
+  label: ELEMENT_TYPE_BY_SEGMENT[seg].plural,
+}));
 
 const linkCls = ({ isActive }: { isActive: boolean }) =>
   [

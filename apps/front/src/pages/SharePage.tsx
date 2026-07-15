@@ -8,6 +8,9 @@ const TYPE_LABELS: Record<string, string> = {
   encounter: 'Encounters',
   item: 'Items',
   note: 'Notes',
+  quest: 'Quests',
+  faction: 'Factions',
+  pc: 'Party',
 };
 
 export default function SharePage() {

@@ -4,6 +4,9 @@ import { npcSchemas } from './npc';
 import { locationSchemas } from './location';
 import { itemSchemas } from './item';
 import { encounterSchemas } from './encounter';
+import { questSchemas } from './quest';
+import { factionSchemas } from './faction';
+import { pcSchemas } from './pc';
 
 export * from './base';
 
@@ -18,4 +21,7 @@ export const elementRegistry: Partial<Record<ElementType, ElementSchemaSet>> = {
   location: locationSchemas,
   item: itemSchemas,
   encounter: encounterSchemas,
+  quest: questSchemas,
+  faction: factionSchemas,
+  pc: pcSchemas,
 };
