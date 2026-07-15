@@ -39,7 +39,7 @@ const logEntrySchema = new Schema(
 
 const sessionSchema = new Schema(
   {
-    campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign', required: true, index: true },
+    campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign', required: true },
     status: { type: String, enum: ['active', 'ended'], default: 'active' },
     sourceEncounterId: { type: Schema.Types.ObjectId, ref: 'Element', default: null },
     round: { type: Number, default: 1 },
@@ -51,6 +51,8 @@ const sessionSchema = new Schema(
   },
   { timestamps: true },
 );
+
+sessionSchema.index({ campaignId: 1, status: 1, createdAt: -1 });
 
 export type SessionDoc = InferSchemaType<typeof sessionSchema> & {
   _id: Types.ObjectId;

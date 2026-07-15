@@ -23,8 +23,8 @@ router.get(
     if (type) filter.type = type;
     if (tag) filter.tags = tag;
     if (q) filter.name = { $regex: q, $options: 'i' };
-    const els = await Element.find(filter).sort({ updatedAt: -1 }).limit(500);
-    res.json({ elements: els.map((e) => publicElement(e as ElementDoc)) });
+    const els = await Element.find(filter).sort({ updatedAt: -1 }).limit(500).lean();
+    res.json({ elements: els.map((e) => publicElement(e as unknown as ElementDoc)) });
   }),
 );
 
@@ -249,7 +249,9 @@ router.get(
       campaignId: req.params.cid,
       deletedAt: null,
       'links.targetId': el._id,
-    }).sort({ updatedAt: -1 });
+    })
+      .sort({ updatedAt: -1 })
+      .lean();
     res.json({
       backlinks: back.map((b) => ({ id: String(b._id), type: b.type, name: b.name })),
     });

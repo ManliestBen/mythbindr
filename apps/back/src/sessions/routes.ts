@@ -15,10 +15,12 @@ router.get(
   '/session',
   requireCampaignAccess('viewer'),
   asyncHandler(async (req, res) => {
-    const s = await GameSession.findOne({ campaignId: req.params.cid, status: 'active' }).sort({
-      createdAt: -1,
-    });
-    res.json({ session: s ? publicSession(s as SessionDoc) : null });
+    const s = await GameSession.findOne({ campaignId: req.params.cid, status: 'active' })
+      .sort({
+        createdAt: -1,
+      })
+      .lean();
+    res.json({ session: s ? publicSession(s as unknown as SessionDoc) : null });
   }),
 );
 
@@ -115,8 +117,9 @@ router.get(
   asyncHandler(async (req, res) => {
     const list = await GameSession.find({ campaignId: req.params.cid, status: 'ended' })
       .sort({ endedAt: -1 })
-      .limit(20);
-    res.json({ sessions: list.map((s) => publicSession(s as SessionDoc)) });
+      .limit(20)
+      .lean();
+    res.json({ sessions: list.map((s) => publicSession(s as unknown as SessionDoc)) });
   }),
 );
 

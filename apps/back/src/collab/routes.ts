@@ -144,7 +144,8 @@ router.get(
     const items = await Activity.find({ campaignId: req.params.cid })
       .populate<{ userId: { displayName: string } }>('userId', 'displayName')
       .sort({ createdAt: -1 })
-      .limit(limit);
+      .limit(limit)
+      .lean();
     res.json({
       activity: items.map((a) => ({
         id: String(a._id),

@@ -2,7 +2,7 @@ import { Schema, model, InferSchemaType, Types } from 'mongoose';
 
 const activitySchema = new Schema(
   {
-    campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign', required: true, index: true },
+    campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign', required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     action: {
       type: String,
@@ -15,6 +15,8 @@ const activitySchema = new Schema(
   },
   { timestamps: true },
 );
+
+activitySchema.index({ campaignId: 1, createdAt: -1 });
 
 export type ActivityDoc = InferSchemaType<typeof activitySchema> & {
   _id: Types.ObjectId;

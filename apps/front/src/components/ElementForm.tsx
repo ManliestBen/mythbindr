@@ -1,11 +1,17 @@
+import { lazy, Suspense } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import RichTextEditor from './RichTextEditor';
-import CollaborativeEditor from './CollaborativeEditor';
 import HelpTip from './HelpTip';
 import { useElements } from '../data/elements';
 import type { DataField } from '../data/elementTypes';
+
+const RichTextEditor = lazy(() => import('./RichTextEditor'));
+const CollaborativeEditor = lazy(() => import('./CollaborativeEditor'));
+
+const editorFallback = (
+  <div className="mt-1 h-40 animate-pulse rounded-lg border border-app-border bg-app-bg" />
+);
 
 const inputCls =
   'mt-1 w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-brand';
@@ -136,21 +142,25 @@ export default function ElementForm({
       <div>
         <label className={labelCls}>Body</label>
         {collabElementId ? (
-          <CollaborativeEditor
-            elementId={collabElementId}
-            campaignId={campaignId}
-            userName={userName ?? 'GM'}
-          />
+          <Suspense fallback={editorFallback}>
+            <CollaborativeEditor
+              elementId={collabElementId}
+              campaignId={campaignId}
+              userName={userName ?? 'GM'}
+            />
+          </Suspense>
         ) : (
           <Controller
             control={control}
             name="body"
             render={({ field }) => (
-              <RichTextEditor
-                value={field.value}
-                onChange={field.onChange}
-                campaignId={campaignId}
-              />
+              <Suspense fallback={editorFallback}>
+                <RichTextEditor
+                  value={field.value}
+                  onChange={field.onChange}
+                  campaignId={campaignId}
+                />
+              </Suspense>
             )}
           />
         )}
