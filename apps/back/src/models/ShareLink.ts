@@ -4,7 +4,7 @@ const shareLinkSchema = new Schema(
   {
     campaignId: { type: Schema.Types.ObjectId, ref: 'Campaign', required: true, index: true },
     token: { type: String, required: true, unique: true },
-    scope: { type: String, enum: ['campaign'], default: 'campaign' },
+    scope: { type: String, enum: ['campaign', 'session'], default: 'campaign' },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     expiresAt: { type: Date, default: null },
     revoked: { type: Boolean, default: false },

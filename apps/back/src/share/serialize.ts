@@ -1,4 +1,5 @@
 import type { ElementDoc } from '../models/Element';
+import type { SessionDoc } from '../models/Session';
 
 /**
  * Replace @mention nodes in a ProseMirror body with plain text labels, so the
@@ -42,5 +43,35 @@ export function sharedElement(e: ElementDoc) {
     tags: e.tags,
     data,
     soundtrack: e.soundtrack,
+  };
+}
+
+/**
+ * Player-facing live-session serialization. **Whitelist only** — mirrors
+ * sharedElement's discipline; a sibling, not a modification of it. Used
+ * exclusively by the `/share` realtime namespace (ShareLink.scope: 'session').
+ *
+ * Monster HP is hidden ENTIRELY (operator decision 2026-07-14, recorded in
+ * docs/design/live-session.md): `isPlayer: false` combatants carry no HP
+ * fields at all — no numbers, no descriptive tiers. Never present on this
+ * path, for any combatant: `deathSaves`, `notes`, `sourceElementId`. Log
+ * entries of `kind: 'note'` (GM scratch notes) are filtered out entirely.
+ */
+export function sharedSession(s: SessionDoc) {
+  return {
+    round: s.round,
+    turnIndex: s.turnIndex,
+    status: s.status,
+    combatants: (s.combatants ?? []).map((c) => ({
+      cid: c.cid,
+      name: c.name,
+      initiative: c.initiative,
+      isPlayer: c.isPlayer,
+      conditions: (c.conditions ?? []).map((x) => ({ name: x.name, rounds: x.rounds ?? null })),
+      ...(c.isPlayer ? { currentHp: c.currentHp, maxHp: c.maxHp, tempHp: c.tempHp } : {}),
+    })),
+    log: (s.log ?? [])
+      .filter((l): l is typeof l & { kind: 'roll' | 'event' } => l.kind !== 'note')
+      .map((l) => ({ at: l.at, kind: l.kind, text: l.text, by: l.by })),
   };
 }
