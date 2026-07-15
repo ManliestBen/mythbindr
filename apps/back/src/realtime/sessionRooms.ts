@@ -1,6 +1,7 @@
 import type { SessionDoc } from '../models/Session';
 import { publicSession } from '../models/Session';
 import { getIO } from './io';
+import { broadcastToShareRoom } from './shareNamespace';
 
 const seqs = new Map<string, number>();
 
@@ -33,6 +34,10 @@ export function broadcastSessionState(s: SessionDoc): void {
       endedAt: string | Date | null;
     },
   });
+  // Parallel filtered fan-out to the read-only /share room for this campaign —
+  // see docs/design/live-session.md ("Player view & share scope"). Additive:
+  // does not change the authenticated emit above.
+  broadcastToShareRoom(io, String(s.campaignId), seq, s);
   if (s.status === 'ended') seqs.delete(sessionId); // room is terminal; free the counter
 }
 

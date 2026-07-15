@@ -2,10 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SessionDoc } from '../models/Session';
 
 // Mock the socket server so we can inspect what gets emitted without a real
-// Socket.IO instance. `to(room).emit(event, payload)` is the only surface used.
+// Socket.IO instance. `to(room).emit(event, payload)` is the only surface used
+// on the main namespace; `of('/share').to(room).emit(...)` is the share fan-out
+// added in plan 012 — stub it too so broadcastSessionState's additive share
+// emit doesn't need a real `io.of`.
 const mocks = vi.hoisted(() => ({
   emit: vi.fn(),
-  ioValue: null as { to: (room: string) => { emit: (...a: unknown[]) => void } } | null,
+  shareEmit: vi.fn(),
+  ioValue: null as {
+    to: (room: string) => { emit: (...a: unknown[]) => void };
+    of: (name: string) => { to: (room: string) => { emit: (...a: unknown[]) => void } };
+  } | null,
 }));
 
 vi.mock('./io', () => ({
@@ -39,7 +46,7 @@ describe('broadcastSessionState', () => {
 
   it('increments seq per session and starts a different session at 1', () => {
     mocks.emit = vi.fn();
-    mocks.ioValue = { to: () => ({ emit: mocks.emit }) };
+    mocks.ioValue = { to: () => ({ emit: mocks.emit }), of: () => ({ to: () => ({ emit: mocks.shareEmit }) }) };
 
     broadcastSessionState(fakeSession('sess-a'));
     broadcastSessionState(fakeSession('sess-a'));
@@ -54,7 +61,7 @@ describe('broadcastSessionState', () => {
 
   it('frees the counter once the session ends, so the next broadcast restarts at 1', () => {
     mocks.emit = vi.fn();
-    mocks.ioValue = { to: () => ({ emit: mocks.emit }) };
+    mocks.ioValue = { to: () => ({ emit: mocks.emit }), of: () => ({ to: () => ({ emit: mocks.shareEmit }) }) };
 
     broadcastSessionState(fakeSession('sess-c'));
     broadcastSessionState(fakeSession('sess-c'));
