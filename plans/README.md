@@ -15,7 +15,11 @@ before starting, honor its STOP conditions, and update your row when done.
 | 005  | High-value tests — dice, combatants, share whitelist, import remap, schemas | P2 | M | 001 | DONE (approved 2026-07-14; 11 test files / 99 tests; branch `worktree-agent-a3cb81e3f2e3f4ea9`, commits `56af452`+`5f46ce1`; merged to main 2026-07-14) |
 | 006  | Perf quick wins — code-split editor stack, lean queries, compound indexes | P2 | M | — (coordinate with 004 on `elements/routes.ts`) | DONE (approved 2026-07-14; branch `worktree-agent-af97972b7bb440de5`, commit `638d426`; merged to main 2026-07-14. Post-merge operator task: drop old single-field campaignId indexes on activities/sessions collections) |
 | 007  | DX & onboarding — CLAUDE.md, env drift, shared watch, Spotify doc, query keys | P2 | M | — (002 first: both touch `env.ts`) | DONE (approved 2026-07-14; branch `worktree-agent-a8869461b891a94d4`, commits `612f7d0`+`5494656`; merged to main 2026-07-14) |
-| 008  | Design spike — live shared session table + share-link session scope | P3 | M | — (account for 003/004 if landed) | DONE (approved 2026-07-14; deliverable `docs/design/live-session.md` on branch `worktree-agent-ad7e3368aa3f66761`, commit `5a16e70`; merged to main 2026-07-14; 5 open questions in the doc need operator answers before build plans A–D are written) |
+| 008  | Design spike — live shared session table + share-link session scope | P3 | M | — (account for 003/004 if landed) | DONE (approved 2026-07-14; deliverable `docs/design/live-session.md` on branch `worktree-agent-ad7e3368aa3f66761`, commit `5a16e70`; merged to main 2026-07-14; all 5 open questions resolved by operator same day) |
+| 009  | Live session broadcast (Slice 1) — session room, `session:state`, live tabs | P2 | M | 008 decisions (done) | TODO |
+| 010  | Server-authoritative session — shared types, combat reducer, op events | P2 | L | 009 | TODO |
+| 011  | Client op dispatch — optimistic apply + seq reconciliation, SaveStatus redefined | P3 | M | 009, 010 | TODO |
+| 012  | Player live table view — ShareLink scope 'session' + read-only /share namespace | P3 | L | 009 (010/011 not required) | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -25,7 +29,9 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - **005 hard-depends on 001** (Vitest scaffold) and extracts code from `DiceRoller.tsx` and `campaigns/routes.ts` — land 003/004 first to avoid churn, though only 004 truly overlaps (`campaigns/routes.ts` import handler is untouched by 004; the overlap is `elements/routes.ts`, which 005 doesn't touch).
 - **004 and 006 both edit `apps/back/src/elements/routes.ts`** — different regions (PATCH links block vs. GET `.lean()`), but land 004 first; 006's drift check expects it.
 - **002 and 007 both edit `apps/back/src/lib/env.ts`** — 002 changes logic (sessionSecret), 007 changes comments/messages. Land 002 first.
-- **008 produces a design doc**, not code; its output decomposes into future build plans.
+- **008 produces a design doc**, not code; its output decomposed into build plans 009–012.
+- **009 → 010 → 011 is a strict chain** (broadcast plumbing → server-held state → client migration). **012 needs only 009**: it consumes `session:state` broadcasts and is indifferent to whether they originate from REST handlers (009) or server-held rooms (010) — it can run in parallel with 010/011. All four implement decisions recorded in `docs/design/live-session.md` (operator-resolved 2026-07-14); executors must read that doc first.
+- **010 and 011 both reshape `RunSession.tsx`'s relationship to the server** — do not run them concurrently with any other plan touching that file.
 
 ## Findings considered and rejected
 
