@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ELEMENT_TYPE_BY_SEGMENT } from '../data/elementTypes';
 import { useElements, useRestoreElement, type ElementT } from '../data/elements';
 import { questProgress } from '../lib/quests';
+import Skeleton from '../components/Skeleton';
 
 /** One informative line under the element name, per type. */
 function summarize(el: ElementT): string {
@@ -218,7 +219,7 @@ export default function ElementList() {
       )}
 
       <div className="mt-4">
-        {isLoading && <p className="text-sm text-fg-muted">Loading…</p>}
+        {isLoading && <Skeleton rows={4} />}
         {error && (
           <p className="text-sm text-red-400">
             {error instanceof Error ? error.message : 'Failed to load'}

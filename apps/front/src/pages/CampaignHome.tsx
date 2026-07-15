@@ -9,6 +9,7 @@ import {
 } from '../data/campaigns';
 import CampaignForm from '../components/CampaignForm';
 import GettingStarted from '../components/GettingStarted';
+import Skeleton from '../components/Skeleton';
 import { useDashboard } from '../data/dashboard';
 import { useActivity } from '../data/activity';
 import { useSession } from '../data/session';
@@ -39,7 +40,13 @@ export default function CampaignHome() {
   const [editing, setEditing] = useState(false);
   const navigate = useNavigate();
 
-  if (isLoading) return <p className="text-sm text-fg-muted">Loading…</p>;
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <Skeleton rows={4} />
+      </div>
+    );
+  }
   if (error || !campaign) {
     return (
       <p className="text-sm text-red-400">
@@ -67,6 +74,7 @@ export default function CampaignHome() {
         <h1 className="text-2xl font-bold">Edit campaign</h1>
         <div className="mt-5 rounded-xl border border-app-border bg-app-surface p-5">
           <CampaignForm
+            campaignId={campaign.id}
             submitLabel="Save changes"
             busy={update.isPending}
             error={update.error instanceof Error ? update.error.message : null}

@@ -1,10 +1,25 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { campaignFormSchema, type CampaignFormValues } from '../data/campaigns';
+import { useRefine } from '../data/ai';
+import { useAuth } from '../auth/AuthProvider';
 
 const inputCls =
   'mt-1 w-full rounded-lg border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-brand';
 const labelCls = 'block text-xs font-medium text-fg-muted';
+
+const REFINE_ACTIONS: { label: string; action: string }[] = [
+  {
+    label: '✨ Polish',
+    action:
+      'Polish this "story so far" campaign summary: tighten the prose and fix grammar, but keep every name, event, and fact exactly as given.',
+  },
+  {
+    label: '✨ Shorten',
+    action:
+      'Condense this "story so far" campaign summary into a recap of a few sentences a GM could read aloud at the start of a session. Keep all proper names.',
+  },
+];
 
 export default function CampaignForm({
   defaultValues,
@@ -13,6 +28,7 @@ export default function CampaignForm({
   busy,
   onCancel,
   error,
+  campaignId,
 }: {
   defaultValues?: Partial<CampaignFormValues>;
   onSubmit: (values: CampaignFormValues) => void;
@@ -20,15 +36,30 @@ export default function CampaignForm({
   busy?: boolean;
   onCancel?: () => void;
   error?: string | null;
+  /** When editing an existing campaign, enables admin AI refine on Story so far. */
+  campaignId?: string;
 }) {
   const {
     register,
     handleSubmit,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
     defaultValues: { startLevel: 1, endLevel: 20, ...defaultValues },
   });
+  const { user } = useAuth();
+  const refine = useRefine(campaignId ?? '');
+
+  const runRefine = (action: string) => {
+    const text = (getValues('storySoFar') ?? '').trim();
+    if (!text) return;
+    refine.mutate(
+      { text, action },
+      { onSuccess: (t) => setValue('storySoFar', t, { shouldDirty: true }) },
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -78,8 +109,30 @@ export default function CampaignForm({
         </div>
       </div>
       <div>
-        <label className={labelCls}>Story so far</label>
+        <div className="flex items-center justify-between">
+          <label className={labelCls}>Story so far</label>
+          {campaignId && user?.isAdmin && (
+            <div className="flex items-center gap-1.5">
+              {REFINE_ACTIONS.map((r) => (
+                <button
+                  key={r.label}
+                  type="button"
+                  onClick={() => runRefine(r.action)}
+                  disabled={refine.isPending}
+                  className="rounded-md border border-app-border px-2 py-0.5 text-[11px] text-fg-muted hover:border-brand hover:text-brand disabled:opacity-50"
+                >
+                  {refine.isPending ? '…' : r.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <textarea rows={3} className={inputCls} {...register('storySoFar')} />
+        {refine.isError && (
+          <p className="mt-1 text-xs text-red-400">
+            {refine.error instanceof Error ? refine.error.message : 'AI refine failed'}
+          </p>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}

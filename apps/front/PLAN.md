@@ -413,3 +413,16 @@ dashboard at deploy — Spotify (§5.12a) needs the prod callback URL added, and
 - ✅ **Polish sweep**: informative element list rows (summaries, status badges, quest
   progress, client-side filter), proper breadcrumb labels, mobile nav drawer, real 404,
   favicon + meta, dead demo page removed.
+
+**Post-v1 enhancement passes, round 2** ✅ (2026-07-14, five more passes)
+- ✅ **Campaign overview upgrade** (§5.3): open-quests panel with objective progress,
+  recently-edited panel (relative timestamps), quick-add row for NPCs/quests/encounters/notes.
+- ✅ **Session table feel** (§5.12): free-form dice formulas (8d6+3) with validation,
+  d20 initiative auto-roll (button + auto-rolled NPC/bestiary adds), N/P/R hotkeys.
+- ✅ **Campaign export** (§5.15): `GET /api/campaigns/:cid/export` — full-fidelity
+  versioned JSON backup or a readable Markdown prep packet (grouped by type, labeled
+  fields, prose from ProseMirror bodies, GM secrets marked); Export dropdown on overview.
+- ✅ **Quest log filters** (§5.8): status filter chips with live counts on any list whose
+  type has a status field; Recent/A–Z sorting.
+- ✅ **AI refine in place** (§5.14): admin-only "Polish"/"Shorten" on Story So Far wires
+  the previously-unused refine endpoint; skeleton loading states across the main pages.

@@ -4,6 +4,7 @@ import { useCampaigns, useCreateCampaign, type CampaignFormValues } from '../dat
 import { useGenerateCampaign } from '../data/ai';
 import { useAuth } from '../auth/AuthProvider';
 import CampaignForm from '../components/CampaignForm';
+import Skeleton from '../components/Skeleton';
 
 export default function Campaigns() {
   const { user } = useAuth();
@@ -97,7 +98,7 @@ export default function Campaigns() {
       )}
 
       <div className="mt-6">
-        {isLoading && <p className="text-sm text-fg-muted">Loading campaigns…</p>}
+        {isLoading && <Skeleton rows={3} />}
         {error && (
           <p className="text-sm text-red-400">
             {error instanceof Error ? error.message : 'Failed to load campaigns'}
