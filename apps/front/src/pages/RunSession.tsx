@@ -104,7 +104,17 @@ export default function RunSession() {
   const currentCid = order.length ? order[session.turnIndex % order.length]?.cid : null;
 
   const changeCombatant = (next: Combatant) =>
-    patch((s) => ({ ...s, combatants: s.combatants.map((c) => (c.cid === next.cid ? next : c)) }));
+    patch((s) => {
+      const before = sortByInit(s.combatants);
+      const onTurn = before.length ? before[s.turnIndex % before.length]?.cid : null;
+      const combatants = s.combatants.map((c) => (c.cid === next.cid ? next : c));
+      // Editing initiative re-sorts the order, which would otherwise slide the
+      // turn pointer onto whoever now occupies that slot. Follow the combatant
+      // whose turn it actually is.
+      const after = sortByInit(combatants);
+      const ti = onTurn ? after.findIndex((c) => c.cid === onTurn) : -1;
+      return { ...s, combatants, turnIndex: ti >= 0 ? ti : s.turnIndex };
+    });
   const removeCombatant = (rm: string) =>
     patch((s) => ({ ...s, combatants: s.combatants.filter((c) => c.cid !== rm) }));
   const addCombatant = (c: Combatant) =>
@@ -147,6 +157,22 @@ export default function RunSession() {
       return { ...s, turnIndex: ti, round, combatants, log };
     });
 
+  /**
+   * Step the turn pointer back. Deliberately does not un-tick conditions:
+   * nextTurn drops them once they expire, so there is nothing left to restore.
+   * This walks the order back, it does not undo the turn.
+   */
+  const prevTurn = () =>
+    patch((s) => {
+      const ord = sortByInit(s.combatants);
+      if (ord.length === 0) return s;
+      if (s.turnIndex <= 0 && s.round <= 1) return s; // already at the top of round 1
+      if (s.turnIndex > 0) return { ...s, turnIndex: s.turnIndex - 1 };
+      return { ...s, turnIndex: ord.length - 1, round: Math.max(1, s.round - 1) };
+    });
+
+  const atStart = session.turnIndex <= 0 && session.round <= 1;
+
   const endSession = () => {
     if (!window.confirm('End this session?')) return;
     end.mutate(session.id, {
@@ -164,7 +190,16 @@ export default function RunSession() {
           <p className="text-[11px] uppercase tracking-[0.15em] text-fg-muted">Run Session</p>
           <h1 className="text-2xl font-bold">Round {session.round}</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <SaveStatus pending={update.isPending} error={update.isError} />
+          <button
+            onClick={prevTurn}
+            disabled={atStart}
+            title={atStart ? 'Already at the start of round 1' : 'Previous turn'}
+            className="rounded-lg border border-app-border px-3 py-2 text-sm font-semibold text-fg hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-app-border disabled:hover:text-fg"
+          >
+            ← Previous
+          </button>
           <button
             onClick={nextTurn}
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-app-bg hover:bg-brand-bright"
@@ -204,5 +239,24 @@ export default function RunSession() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Saves are debounced and fire in the background — say so, and never fail silently. */
+function SaveStatus({ pending, error }: { pending: boolean; error: boolean }) {
+  if (error) {
+    return (
+      <span
+        title="The last change could not be saved. Your next edit will retry."
+        className="rounded-lg bg-red-500/15 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-400"
+      >
+        Not saved
+      </span>
+    );
+  }
+  return (
+    <span className="text-[11px] uppercase tracking-wide text-fg-muted">
+      {pending ? 'Saving…' : 'Saved'}
+    </span>
   );
 }

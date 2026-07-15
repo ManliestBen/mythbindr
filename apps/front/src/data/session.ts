@@ -65,12 +65,21 @@ export function useStartSession(cid: string) {
 }
 
 export function useUpdateSession(cid: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { sid: string; patch: Partial<GameSessionT> }) =>
       apiPatch<{ session: GameSessionT }>(
         `/api/campaigns/${cid}/session/${v.sid}`,
         v.patch,
       ).then((r) => r.session),
+    /**
+     * Write the saved session back into the query cache. Without this the cache
+     * still holds the pre-edit session, and because queries are fresh for
+     * staleTime (30s) with no refetch on focus, navigating away and back
+     * re-seeds the tracker from that stale snapshot — so rolls, notes and HP
+     * that are safely in the database look like they were never saved.
+     */
+    onSuccess: (session) => qc.setQueryData(key(cid), session),
   });
 }
 

@@ -15,6 +15,20 @@ export default function CombatantCard({
   const [amt, setAmt] = useState('');
   const n = Math.max(parseInt(amt, 10) || 0, 0);
 
+  /**
+   * Initiative is edited against a local draft and only committed on blur or
+   * Enter. The tracker sorts on initiative, so committing per keystroke would
+   * re-order the list and yank the card out from under the cursor mid-type.
+   */
+  const [initDraft, setInitDraft] = useState<string | null>(null);
+  const commitInit = () => {
+    if (initDraft === null) return;
+    const v = parseInt(initDraft, 10);
+    setInitDraft(null);
+    if (Number.isNaN(v) || v === c.initiative) return;
+    onChange({ ...c, initiative: v });
+  };
+
   const down = c.currentHp <= 0;
   const bloodied = !down && c.maxHp > 0 && c.currentHp <= c.maxHp / 2;
 
@@ -56,9 +70,23 @@ export default function CombatantCard({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-app-surface2 text-sm font-bold text-brand">
-            {c.initiative}
-          </span>
+          <input
+            type="number"
+            value={initDraft ?? String(c.initiative)}
+            onChange={(e) => setInitDraft(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
+            onBlur={commitInit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') {
+                setInitDraft(null);
+                e.currentTarget.blur();
+              }
+            }}
+            title={`Initiative for ${c.name}`}
+            aria-label={`Initiative for ${c.name}`}
+            className="h-7 w-9 rounded-lg bg-app-surface2 text-center text-sm font-bold text-brand outline-none [appearance:textfield] hover:ring-1 hover:ring-app-border focus:ring-1 focus:ring-brand [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
           <span className="font-medium">{c.name}</span>
           {c.isPlayer && (
             <span className="text-[10px] uppercase tracking-wide text-fg-muted">PC</span>
