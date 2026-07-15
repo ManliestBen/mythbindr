@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSrdList, useSrdResource } from '../../data/srd';
 import { useCreateElement } from '../../data/elements';
+import { rollQuickNpc, type QuickNpcResult } from '../../lib/generators';
 
 /**
  * Slide-over rules drawer for Run Session: SRD conditions, the actions every
@@ -27,36 +28,6 @@ const COMBAT_ACTIONS: { name: string; text: string }[] = [
   { name: 'Shove (special)', text: 'Replaces one attack: same contest as grappling. On a win, push the target 5 ft or knock it prone.' },
   { name: 'Opportunity Attack', text: 'Reaction: one melee attack against a creature that moves out of your reach (unless it Disengaged or teleported).' },
 ];
-
-// Quick-NPC tables: enough variety for a night of improv.
-const NPC_FIRST = ['Bram', 'Sella', 'Torv', 'Mira', 'Oskar', 'Hild', 'Jasper', 'Nyssa', 'Corin', 'Vada', 'Rurik', 'Elba', 'Fenwick', 'Isolde', 'Garrick', 'Petra', 'Aldous', 'Wren', 'Dorn', 'Liet'];
-const NPC_LAST = ['Thistledown', 'Blackbriar', 'Copperkettle', 'Marsh', 'Vane', 'Holloway', 'Grimsbane', 'Fairweather', 'Stonebrook', 'Ashford', 'Nettlebee', 'Duskwalker', 'Pyke', 'Amberhill', 'Crowley', 'Tanner'];
-const NPC_ROLE = ['innkeeper', 'town guard', 'traveling merchant', 'street urchin', 'dockworker', 'gravedigger', 'apprentice mage', 'off-duty soldier', 'fortune teller', 'stable hand', 'tax collector', 'itinerant priest', 'rat catcher', 'minstrel', 'midwife', 'smuggler'];
-const NPC_QUIRK = ['talks to an invisible “friend”', 'collects teeth — don’t ask', 'laughs at the wrong moments', 'is aggressively superstitious', 'quotes a dead philosopher constantly', 'smells faintly of lavender and smoke', 'never blinks during conversation', 'keeps a ferret in one pocket', 'is owed money by half the town', 'lies about small, pointless things', 'hums sea shanties under their breath', 'is convinced the party are famous heroes', 'writes everything down in a tiny ledger', 'has an identical twin nobody mentions'];
-const NPC_WANT = ['wants protection from a local gang', 'is desperate to leave town tonight', 'needs a rare herb for a sick child', 'wants gossip about the nobility', 'is looking for a lost sibling', 'wants to sell something clearly stolen', 'needs witnesses for a duel at dawn', 'is recruiting for a “completely safe” job', 'wants the party to deliver a letter, no questions', 'is hiding from someone in the party’s last town'];
-const NPC_VOICE = ['gravelly and slow', 'high and rapid-fire', 'overly formal', 'whispery, leans in close', 'booming, stands too far away', 'bored monotone', 'thick rural drawl', 'sing-song and cheerful', 'clipped military cadence', 'perpetually out of breath'];
-
-function pick<T>(arr: readonly T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-export interface QuickNpcResult {
-  name: string;
-  role: string;
-  quirk: string;
-  want: string;
-  voice: string;
-}
-
-export function rollQuickNpc(): QuickNpcResult {
-  return {
-    name: `${pick(NPC_FIRST)} ${pick(NPC_LAST)}`,
-    role: pick(NPC_ROLE),
-    quirk: pick(NPC_QUIRK),
-    want: pick(NPC_WANT),
-    voice: pick(NPC_VOICE),
-  };
-}
 
 function ConditionRow({ slug, name }: { slug: string; name: string }) {
   const [open, setOpen] = useState(false);

@@ -4,6 +4,7 @@ import { ELEMENT_TYPE_BY_SEGMENT } from '../data/elementTypes';
 import { useElements, useRestoreElement, type ElementT } from '../data/elements';
 import { questProgress } from '../lib/quests';
 import Skeleton from '../components/Skeleton';
+import PartyGenerator from '../components/PartyGenerator';
 
 /** One informative line under the element name, per type. */
 function summarize(el: ElementT): string {
@@ -154,6 +155,8 @@ export default function ElementList() {
           )}
         </div>
       </div>
+
+      {cfg.type === 'pc' && !showTrash && <PartyGenerator campaignId={cid ?? ''} />}
 
       {statusField && !showTrash && (elements?.length ?? 0) > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-1.5">
