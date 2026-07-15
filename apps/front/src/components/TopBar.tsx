@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import ThemeQuickSwitch from './ThemeQuickSwitch';
 import { useActiveCampaign } from '../campaign/ActiveCampaignProvider';
 
-export default function TopBar() {
+export default function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { campaigns, activeCampaignId } = useActiveCampaign();
@@ -57,6 +57,18 @@ export default function TopBar() {
             />
           </form>
         )}
+        <button
+          onClick={onOpenPalette}
+          title="Command palette — jump to anything"
+          className="hidden items-center gap-1.5 rounded-lg border border-app-border px-2 py-1 text-xs text-fg-muted hover:text-fg sm:flex"
+        >
+          <kbd className="rounded border border-app-border bg-app-bg px-1 font-sans text-[10px]">
+            {navigator.platform.toUpperCase().includes('MAC') ? '⌘' : 'Ctrl'}
+          </kbd>
+          <kbd className="rounded border border-app-border bg-app-bg px-1 font-sans text-[10px]">
+            K
+          </kbd>
+        </button>
         <ThemeQuickSwitch />
       </div>
     </header>

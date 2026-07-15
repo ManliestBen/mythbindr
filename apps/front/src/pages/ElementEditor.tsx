@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { recordRecent } from '../lib/recentItems';
 import { usePresence, type Participant } from '../realtime/usePresence';
 import { useAuth } from '../auth/AuthProvider';
 import { ELEMENT_TYPE_BY_SEGMENT, segmentForType } from '../data/elementTypes';
@@ -37,6 +38,13 @@ export default function ElementEditor() {
   const [conflict, setConflict] = useState(false);
 
   const backTo = `/campaigns/${cid}/${seg}`;
+
+  // Feed the command palette's "Recent" group.
+  useEffect(() => {
+    if (cid && seg && element && !isNew) {
+      recordRecent(cid, { id: element.id, seg, name: element.name });
+    }
+  }, [cid, seg, isNew, element]);
 
   if (!cfg || !cfg.available) {
     return <p className="text-sm text-fg-muted">Not available.</p>;
