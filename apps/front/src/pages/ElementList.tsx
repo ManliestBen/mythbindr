@@ -1,12 +1,91 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ELEMENT_TYPE_BY_SEGMENT } from '../data/elementTypes';
-import { useElements, useRestoreElement } from '../data/elements';
+import { useElements, useRestoreElement, type ElementT } from '../data/elements';
+
+/** One informative line under the element name, per type. */
+function summarize(el: ElementT): string {
+  const d = el.data as Record<string, string | number | undefined>;
+  const parts: (string | number | undefined | false)[] = [];
+  switch (el.type) {
+    case 'npc':
+      parts.push(d.role && String(d.role), d.location && `in ${d.location}`, d.summary && String(d.summary));
+      break;
+    case 'location':
+      parts.push(d.locType && String(d.locType));
+      break;
+    case 'encounter':
+      parts.push(d.encType && String(d.encType), d.trigger && String(d.trigger));
+      break;
+    case 'item':
+      parts.push(d.rarity && String(d.rarity), d.itemType && String(d.itemType));
+      break;
+    case 'quest':
+      parts.push(d.giver && `from ${d.giver}`, d.hook && String(d.hook));
+      break;
+    case 'faction':
+      parts.push(d.influence && `${d.influence} influence`, d.leader && `led by ${d.leader}`);
+      break;
+    case 'pc':
+      parts.push(
+        d.playerName && `played by ${d.playerName}`,
+        d.klass && `${d.klass}${d.level ? ` ${d.level}` : ''}`,
+        d.ac && `AC ${d.ac}`,
+      );
+      break;
+  }
+  return parts.filter(Boolean).join(' · ');
+}
+
+/** Colored status badge for the types that have a lifecycle. */
+function statusBadge(el: ElementT): { label: string; cls: string } | null {
+  const status = (el.data as Record<string, unknown>).status as string | undefined;
+  if (!status) return null;
+  if (el.type === 'quest') {
+    const cls =
+      status === 'active'
+        ? 'bg-brand/15 text-brand'
+        : status === 'completed'
+          ? 'bg-emerald-500/15 text-emerald-400'
+          : status === 'failed'
+            ? 'bg-red-500/15 text-red-400'
+            : 'border border-app-border text-fg-muted';
+    return { label: status, cls };
+  }
+  if (el.type === 'encounter' && status !== 'planned') {
+    return {
+      label: status,
+      cls:
+        status === 'completed'
+          ? 'bg-emerald-500/15 text-emerald-400'
+          : 'bg-brand/15 text-brand',
+    };
+  }
+  if (el.type === 'npc' && status && status !== 'alive') {
+    return { label: status, cls: 'bg-red-500/15 text-red-400' };
+  }
+  return null;
+}
+
+/** Quest objectives: one per line; a leading "x " marks a line done. */
+function questProgress(el: ElementT): { done: number; total: number } | null {
+  if (el.type !== 'quest') return null;
+  const raw = (el.data as Record<string, unknown>).objectives;
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const lines = raw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return null;
+  const done = lines.filter((l) => /^x\s/i.test(l)).length;
+  return { done, total: lines.length };
+}
 
 export default function ElementList() {
   const { cid, type: seg } = useParams();
   const cfg = seg ? ELEMENT_TYPE_BY_SEGMENT[seg] : undefined;
   const [showTrash, setShowTrash] = useState(false);
+  const [filter, setFilter] = useState('');
   const restore = useRestoreElement(cid ?? '');
 
   const { data: elements, isLoading, error } = useElements(cid ?? '', {
@@ -28,6 +107,13 @@ export default function ElementList() {
       </div>
     );
   }
+
+  const visible = (elements ?? []).filter(
+    (el) =>
+      !filter.trim() ||
+      el.name.toLowerCase().includes(filter.trim().toLowerCase()) ||
+      el.tags.some((t) => t.toLowerCase().includes(filter.trim().toLowerCase())),
+  );
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -57,7 +143,17 @@ export default function ElementList() {
         </div>
       </div>
 
-      <div className="mt-6">
+      {(elements?.length ?? 0) > 5 && (
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder={`Filter ${cfg.plural.toLowerCase()} by name or tag…`}
+          className="mt-4 w-full max-w-xs rounded-lg border border-app-border bg-app-bg px-3 py-1.5 text-sm outline-none focus:border-brand"
+          aria-label={`Filter ${cfg.plural}`}
+        />
+      )}
+
+      <div className="mt-4">
         {isLoading && <p className="text-sm text-fg-muted">Loading…</p>}
         {error && (
           <p className="text-sm text-red-400">
@@ -88,51 +184,85 @@ export default function ElementList() {
           </div>
         )}
 
-        {elements && elements.length > 0 && (
+        {elements && elements.length > 0 && visible.length === 0 && (
+          <p className="text-sm text-fg-muted">Nothing matches “{filter}”.</p>
+        )}
+
+        {visible.length > 0 && (
           <ul className="space-y-2">
-            {elements.map((el) => (
-              <li
-                key={el.id}
-                className="flex items-center justify-between gap-4 rounded-xl border border-app-border bg-app-surface p-4"
-              >
-                <div className="min-w-0">
-                  {showTrash ? (
-                    <span className="font-medium">{el.name}</span>
-                  ) : (
-                    <Link
-                      to={`/campaigns/${cid}/${seg}/${el.id}`}
-                      className="font-medium hover:text-brand"
-                    >
-                      {el.name}
-                    </Link>
-                  )}
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    {el.playerVisible && (
-                      <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand">
-                        Shared
-                      </span>
+            {visible.map((el) => {
+              const summary = summarize(el);
+              const badge = statusBadge(el);
+              const progress = questProgress(el);
+              return (
+                <li
+                  key={el.id}
+                  className="flex items-center justify-between gap-4 rounded-xl border border-app-border bg-app-surface p-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {showTrash ? (
+                        <span className="font-medium">{el.name}</span>
+                      ) : (
+                        <Link
+                          to={`/campaigns/${cid}/${seg}/${el.id}`}
+                          className="font-medium hover:text-brand"
+                        >
+                          {el.name}
+                        </Link>
+                      )}
+                      {badge && (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.cls}`}
+                        >
+                          {badge.label}
+                        </span>
+                      )}
+                    </div>
+                    {summary && (
+                      <p className="mt-0.5 truncate text-xs text-fg-muted">{summary}</p>
                     )}
-                    {el.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-full border border-app-border px-2 py-0.5 text-[10px] text-fg-muted"
-                      >
-                        {t}
-                      </span>
-                    ))}
+                    {progress && (
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <div className="h-1 w-28 overflow-hidden rounded-full bg-app-surface2">
+                          <div
+                            className="h-full rounded-full bg-brand"
+                            style={{ width: `${(progress.done / progress.total) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-fg-muted">
+                          {progress.done}/{progress.total} objectives
+                        </span>
+                      </div>
+                    )}
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {el.playerVisible && (
+                        <span className="rounded-full bg-brand/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand">
+                          Shared
+                        </span>
+                      )}
+                      {el.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="rounded-full border border-app-border px-2 py-0.5 text-[10px] text-fg-muted"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                {showTrash && (
-                  <button
-                    onClick={() => restore.mutate(el.id)}
-                    disabled={restore.isPending}
-                    className="shrink-0 rounded-lg border border-app-border px-3 py-1.5 text-sm text-fg-muted hover:text-fg disabled:opacity-50"
-                  >
-                    Restore
-                  </button>
-                )}
-              </li>
-            ))}
+                  {showTrash && (
+                    <button
+                      onClick={() => restore.mutate(el.id)}
+                      disabled={restore.isPending}
+                      className="shrink-0 rounded-lg border border-app-border px-3 py-1.5 text-sm text-fg-muted hover:text-fg disabled:opacity-50"
+                    >
+                      Restore
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

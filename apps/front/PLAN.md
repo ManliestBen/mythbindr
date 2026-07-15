@@ -394,5 +394,22 @@ dashboard at deploy — Spotify (§5.12a) needs the prod callback URL added, and
   Refine-text endpoint in place for future inline use.
 
 **Roadmap complete** 🎉 — Phases 0–5 are all shipped. Remaining backlog items (`[P1]`/`[P2]`/
-`[Later]` in §5: PC pregen §5.10, quests/factions, the full real-time CRDT polish, export
-§5.15, AI party-gen §5.14) are enhancements on top of a complete v1.
+`[Later]` in §5: PC pregen §5.10, the full real-time CRDT polish, export §5.15, AI party-gen
+§5.14) are enhancements on top of a complete v1.
+
+**Post-v1 enhancement passes** ✅ (2026-07-14, five passes)
+- ✅ **Quests, Factions & Player Characters** (§5.8, §5.9): three new element types
+  end-to-end (shared zod schemas → registry → config-driven forms), quest status +
+  objectives with progress bars, PC table numbers (AC/HP/passive perception); nav,
+  campaign tiles, share view, and AI campaign generation all include them.
+- ✅ **New-GM onboarding** (§5.2): getting-started checklist on the campaign overview
+  (driven by real state, dismissible, auto-hides), "?" jargon tooltips throughout the
+  element forms, per-type guidance blurbs + rich empty states, first-run welcome hero.
+- ✅ **Run Session table tools** (§5.12): quick-reference slide-over (searchable SRD
+  conditions + combat-action summaries), quick-NPC improviser (log to session or save
+  as a real NPC), party at-a-glance bar (AC/PP) with one-click "add party to tracker".
+- ✅ **Command palette & shortcuts** (§5.2): Ctrl/Cmd-K palette (element search, "new X"
+  actions, campaign switching), "/" opens it anywhere, per-campaign recent-items list.
+- ✅ **Polish sweep**: informative element list rows (summaries, status badges, quest
+  progress, client-side filter), proper breadcrumb labels, mobile nav drawer, real 404,
+  favicon + meta, dead demo page removed.

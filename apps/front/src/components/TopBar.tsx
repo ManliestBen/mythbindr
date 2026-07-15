@@ -2,16 +2,33 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ThemeQuickSwitch from './ThemeQuickSwitch';
 import { useActiveCampaign } from '../campaign/ActiveCampaignProvider';
+import { ELEMENT_TYPE_BY_SEGMENT } from '../data/elementTypes';
 
-export default function TopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
+const SECTION_LABELS: Record<string, string> = {
+  session: 'Run Session',
+  members: 'Members',
+  search: 'Search',
+};
+
+export default function TopBar({
+  onOpenPalette,
+  onToggleNav,
+}: {
+  onOpenPalette: () => void;
+  onToggleNav: () => void;
+}) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { campaigns, activeCampaignId } = useActiveCampaign();
   const [q, setQ] = useState('');
 
-  // Section label from the element-type path segment, e.g. /campaigns/:cid/npcs → "Npcs".
+  // Section label from the path segment, e.g. /campaigns/:cid/npcs → "NPCs".
   const seg = pathname.split('/')[3];
-  const section = seg ? seg.charAt(0).toUpperCase() + seg.slice(1) : null;
+  const section = seg
+    ? ELEMENT_TYPE_BY_SEGMENT[seg]?.plural ??
+      SECTION_LABELS[seg] ??
+      seg.charAt(0).toUpperCase() + seg.slice(1)
+    : null;
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +40,13 @@ export default function TopBar({ onOpenPalette }: { onOpenPalette: () => void })
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-app-border bg-app-surface px-6">
       <div className="flex min-w-0 items-center gap-2">
+        <button
+          onClick={onToggleNav}
+          className="rounded-lg border border-app-border px-2 py-1 text-fg-muted hover:text-fg md:hidden"
+          aria-label="Toggle navigation"
+        >
+          ☰
+        </button>
         {campaigns.length > 0 ? (
           <select
             value={activeCampaignId ?? ''}
