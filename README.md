@@ -1,7 +1,9 @@
 # MythBindr (monorepo)
 
-A TTRPG campaign companion: real-time co-editing, run-session tools, SRD
-reference, Spotify mood slots, and AI assist.
+A TTRPG campaign companion: real-time co-editing, run-session tools (initiative,
+dice, rules drawer, improv generators), quests/factions/party tracking, a
+relationship map, player share view, campaign export/import, SRD reference,
+Spotify mood slots, and AI assist.
 
 ## Layout
 

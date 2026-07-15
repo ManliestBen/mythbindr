@@ -426,3 +426,25 @@ dashboard at deploy — Spotify (§5.12a) needs the prod callback URL added, and
   type has a status field; Recent/A–Z sorting.
 - ✅ **AI refine in place** (§5.14): admin-only "Polish"/"Shorten" on Story So Far wires
   the previously-unused refine endpoint; skeleton loading states across the main pages.
+
+**Post-v1 enhancement passes, round 3** ✅ (2026-07-14, ten more passes)
+- ✅ **Import** (§5.15): `POST /api/campaigns/import` round-trips the JSON export —
+  fresh ids with links & @mentions remapped; Import button on Campaigns.
+- ✅ **Party generator** (§5.10 scoped): 1–8 SRD-legal pregens (balanced roles, standard
+  array, real HP math, gear AC) saved as editable `pregen`-tagged PC elements.
+- ✅ **Relationship map** (§5.3): force-directed SVG graph of all elements + links at
+  `/campaigns/:cid/map`; type toggles, hover neighborhoods, click-through.
+- ✅ **Session history & recap** (§5.12): past-sessions panel with expandable logs; end
+  dialog saves an optional recap Note with auto-collected highlights.
+- ✅ **Toasts + undo**: element/campaign deletes act immediately with an 8s Undo instead
+  of a confirm dialog.
+- ✅ **Share view 2.0** (§5.11a): TOC, fact chips, read-aloud quotes; serializer now
+  strips GM planning data (quest consequences, encounter tactics).
+- ✅ **Improv generators**: tavern names, rarity-weighted pocket loot, plot hooks in the
+  session drawer, all loggable.
+- ✅ **Combatant cards**: duplicate with auto-numbering, condition round-counters,
+  per-combatant tactics notes.
+- ✅ **Search & activity**: type filter chips on search; full activity page (limit 200,
+  action/member filters).
+- ✅ **Final sweep**: demo seed gains quests/faction/pregen PCs, keyboard focus rings,
+  docs updated.

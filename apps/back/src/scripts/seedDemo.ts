@@ -1913,6 +1913,135 @@ const ELEMENTS: Seed[] = [
       ],
     },
   },
+
+  /* ══════════════════════════ Quests ══════════════════════════ */
+  {
+    key: 'q-crack',
+    type: 'quest',
+    created: '2026-06-20',
+    updated: '2026-07-12',
+    input: {
+      name: 'Mend the Crack',
+      playerVisible: true,
+      tags: ['act-1', 'main-quest'],
+      data: {
+        status: 'active',
+        giver: 'Bellwright Ferran',
+        hook: 'The Bell cracked at Midwinter — and this year, nobody forgot.',
+        objectives:
+          'x Examine the Bell tower with Ferran\nFind out what the crack is letting through\nLearn what the lake remembers\nDecide what to tell the town',
+        consequences:
+          'If the party publicizes the bargain before Act 2, the Vessarine accelerates the Last Toll by one session.',
+      },
+      body: doc(
+        p(
+          t('The town believes this is a repair job. '),
+          em('It is a diagnosis.'),
+        ),
+      ),
+      secrets: 'The crack cannot be mended. Every objective is really about who finds that out, and when.',
+      relationships: [{ targetId: ref('ferran'), relType: 'given by' }],
+    },
+  },
+  {
+    key: 'q-name',
+    type: 'quest',
+    created: '2026-07-01',
+    updated: '2026-07-12',
+    input: {
+      name: 'What Was Her Name?',
+      playerVisible: false,
+      tags: ['act-3', 'wren'],
+      data: {
+        status: 'rumored',
+        hook: 'Somebody paid the Bell a name that was not theirs to give.',
+        objectives: 'Trace the name through the toll ledgers\nAsk the lake',
+      },
+      body: doc(p(t('Unlocks after the second toll. Do not seed this one early — it lands harder as a discovery.'))),
+      secrets: 'The name is Wren’s. The quest completes only if a player says it aloud at the Last Toll.',
+      relationships: [{ targetId: ref('wren'), relType: 'concerns' }],
+    },
+  },
+
+  /* ══════════════════════════ Factions ══════════════════════════ */
+  {
+    key: 'f-bellwrights',
+    type: 'faction',
+    created: '2026-06-20',
+    updated: '2026-07-10',
+    input: {
+      name: 'The Bellwrights',
+      playerVisible: true,
+      tags: ['corvath', 'order'],
+      data: {
+        influence: 'established',
+        leader: 'Bellwright Ferran',
+        headquarters: 'The Belfry of Saint Aurel',
+        goals: 'Keep the Bell rung, the ledgers balanced, and the town from asking why.',
+        members: 'Ferran, two apprentices, and a rotating watch of volunteers who do not remember volunteering.',
+        alliesEnemies: 'Tolerated by the town council; quietly opposed by anyone the toll has cost too much.',
+      },
+      body: doc(
+        p(
+          t('An order of maintenance, not faith. They oil the wheel, chalk the ledgers, and ring the toll — and each of them privately believes they are the only one who suspects what it costs.'),
+        ),
+      ),
+      secrets: 'The founding charter, kept under the third bell, is a confession.',
+      relationships: [{ targetId: ref('ferran'), relType: 'led by' }],
+    },
+  },
+
+  /* ══════════════════════════ Party ══════════════════════════ */
+  {
+    key: 'pc-maren',
+    type: 'pc',
+    created: '2026-07-05',
+    updated: '2026-07-12',
+    input: {
+      name: 'Maren Holt',
+      playerVisible: false,
+      tags: ['pregen', 'healer'],
+      data: {
+        playerName: '',
+        race: 'Hill Dwarf',
+        klass: 'Cleric',
+        level: 3,
+        ac: 18,
+        hpMax: 27,
+        passivePerception: 15,
+        flawsBonds: 'Flaw: cannot leave a debt unpaid. Bond: wears a sibling’s holy symbol, scorched on one side.',
+        backstoryHooks: 'Her order sent her to Corvath forty years ago. There is no record of that — anywhere.',
+      },
+      body: doc(p(t('Pregen sheet — hand to a player and let them fill in the rest.'))),
+      secrets: '',
+      relationships: [],
+    },
+  },
+  {
+    key: 'pc-issa',
+    type: 'pc',
+    created: '2026-07-05',
+    updated: '2026-07-12',
+    input: {
+      name: 'Issa Vane',
+      playerVisible: false,
+      tags: ['pregen', 'face'],
+      data: {
+        playerName: '',
+        race: 'Tiefling',
+        klass: 'Bard',
+        level: 3,
+        ac: 14,
+        hpMax: 21,
+        passivePerception: 13,
+        flawsBonds: 'Flaw: lies about small, pointless things. Bond: owes their life to a stranger they’re still searching for.',
+        backstoryHooks: 'Knows a drinking song about a frozen lake. Cannot remember learning it.',
+      },
+      body: doc(p(t('Pregen sheet — hand to a player and let them fill in the rest.'))),
+      secrets: '',
+      relationships: [],
+    },
+  },
 ];
 
 /* ── Campaign document ────────────────────────────────────────────────────── */
