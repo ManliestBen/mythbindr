@@ -41,8 +41,9 @@ npm run dev:back            # API on :4000  (needs apps/back/.env — copy apps/
 npm run dev:front           # SPA on :5173
 ```
 
-> After editing `packages/shared`, re-run `npm run build:shared` so the apps pick
-> up the new types/code (the apps consume its built `dist/`).
+> After editing `packages/shared`, re-run `npm run build:shared` — or keep
+> `npm run dev:shared` running in a third terminal so the apps always see
+> fresh `dist/`.
 
 Typecheck / build everything:
 

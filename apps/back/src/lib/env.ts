@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load server/.env regardless of the process cwd.
+// Load apps/back/.env regardless of the process cwd.
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 function required(name: string): string {
@@ -9,7 +9,7 @@ function required(name: string): string {
   if (!value) {
     throw new Error(
       `Missing required environment variable: ${name}. ` +
-        `Set it in server/.env (see server/.env.example).`,
+        `Set it in apps/back/.env (see apps/back/.env.example).`,
     );
   }
   return value;
