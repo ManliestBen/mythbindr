@@ -16,6 +16,19 @@ function parseFormula(raw: string): { count: number; sides: number; mod: number 
   return { count, sides, mod: m[3] ? parseInt(m[3], 10) : 0 };
 }
 
+/** Roll `count` advantage/disadvantage d20 pairs; one readable log line. */
+function rollD20Pairs(kind: 'adv' | 'dis', count: number, m: number): string {
+  const pairs = Array.from({ length: count }, () => {
+    const a = rollDie(20);
+    const b = rollDie(20);
+    return { a, b, pick: kind === 'adv' ? Math.max(a, b) : Math.min(a, b) };
+  });
+  const detail = pairs.map((p) => `[${p.a},${p.b}→${p.pick}]`).join(' ');
+  const modStr = m ? `${m > 0 ? '+' : ''}${m}` : '';
+  const totals = pairs.map((p) => p.pick + m).join(', ');
+  return `${count > 1 ? `${count}×` : ''}d20 (${kind}) ${detail}${modStr} = ${totals}`;
+}
+
 export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void }) {
   const [mod, setMod] = useState('');
   const [count, setCount] = useState('1');
@@ -30,6 +43,12 @@ export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void 
       return;
     }
     setFormulaError(false);
+    // The adv/dis toggle applies to every d20 roll, formula rolls included.
+    if (parsed.sides === 20 && adv !== 'none') {
+      onRoll(rollD20Pairs(adv, parsed.count, parsed.mod));
+      setFormula('');
+      return;
+    }
     const rolls = Array.from({ length: parsed.count }, () => rollDie(parsed.sides));
     const sum = rolls.reduce((x, y) => x + y, 0) + parsed.mod;
     const modStr = parsed.mod ? `${parsed.mod > 0 ? '+' : ''}${parsed.mod}` : '';
@@ -45,10 +64,8 @@ export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void 
     const modStr = m ? `${m > 0 ? '+' : ''}${m}` : '';
 
     if (sides === 20 && adv !== 'none') {
-      const a = rollDie(20);
-      const b = rollDie(20);
-      const pick = adv === 'adv' ? Math.max(a, b) : Math.min(a, b);
-      onRoll(`d20 ${adv === 'adv' ? '(adv)' : '(dis)'} [${a}, ${b}]${modStr} = ${pick + m}`);
+      // Honor the × count too: two attacks with advantage = two pairs.
+      onRoll(rollD20Pairs(adv, c, m));
       return;
     }
     const rolls = Array.from({ length: c }, () => rollDie(sides));
@@ -106,7 +123,7 @@ export default function DiceRoller({ onRoll }: { onRoll: (text: string) => void 
               {a === 'none' ? 'normal' : a}
             </button>
           ))}
-          <span className="self-center text-[10px] text-fg-muted">(d20)</span>
+          <span className="self-center text-[10px] text-fg-muted">(any d20 roll)</span>
         </div>
       </div>
       <div className="mt-2 flex items-center gap-2">
